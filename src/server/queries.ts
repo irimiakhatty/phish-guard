@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import analyticsServerClient from "./analytics";
 
 export async function getMyImages() {
-  const user = auth();
+  const user = await auth();
 
   if (!user.userId) throw new Error("Unauthorized");
 
@@ -20,7 +20,7 @@ export async function getMyImages() {
 }
 
 export async function getImage(id: number) {
-  const user = auth();
+  const user = await auth();
   if (!user.userId) throw new Error("Unauthorized");
 
   const image = await db.query.images.findFirst({
@@ -34,7 +34,7 @@ export async function getImage(id: number) {
 }
 
 export async function deleteImage(id: number) {
-  const user = auth();
+  const user = await auth();
   if (!user.userId) throw new Error("Unauthorized");
 
   await db

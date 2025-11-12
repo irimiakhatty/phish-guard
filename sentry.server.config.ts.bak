@@ -1,0 +1,8 @@
+// Backup of sentry.server.config.ts — moved temporarily to avoid Sentry server-side init wrapping during build debug.
+import * as Sentry from "@sentry/nextjs";
+
+Sentry.init({
+  dsn: "https://d0e455d1b5e7d096346be32af0d6fcf0@o988407.ingest.us.sentry.io/4507004151791616",
+  tracesSampleRate: 1,
+  debug: false,
+});

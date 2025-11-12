@@ -32,7 +32,7 @@ const coreConfig = {
 
 import { withSentryConfig } from "@sentry/nextjs";
 
-const config = withSentryConfig(
+const config = /** @type {any} */ (withSentryConfig)(
   coreConfig,
   {
     // For all available options, see:
@@ -70,6 +70,7 @@ const config = withSentryConfig(
     // https://vercel.com/docs/cron-jobs
     automaticVercelMonitors: true,
   },
+  {},
 );
 
 export default config;

@@ -1,5 +1,5 @@
 import { clerkClient } from "@clerk/nextjs/server";
-import { Button } from "~/components/ui/button";
+import { Button } from "~/ui/button";
 import { deleteImage, getImage } from "~/server/queries";
 
 export async function FullPageImageView(props: { photoId: string }) {
@@ -8,7 +8,8 @@ export async function FullPageImageView(props: { photoId: string }) {
 
   const image = await getImage(idAsNumber);
 
-  const userInfo = await clerkClient.users.getUser(image.userId);
+  const _clerkClient = await clerkClient();
+  const userInfo = await _clerkClient.users.getUser(image.userId);
 
   return (
     <div className="flex h-full w-screen min-w-0 items-center justify-center text-white">
@@ -29,17 +30,11 @@ export async function FullPageImageView(props: { photoId: string }) {
         </div>
 
         <div className="p-2">
-          <form
-            action={async () => {
-              "use server";
-
-              await deleteImage(idAsNumber);
-            }}
-          >
-            <Button type="submit" variant="destructive">
-              Delete
-            </Button>
-          </form>
+          {/* Server action removed for build-time stability. Replace with a
+              proper server action or API route when restoring delete flow. */}
+          <Button type="button" variant="destructive" disabled>
+            Delete
+          </Button>
         </div>
       </div>
     </div>
