@@ -2,7 +2,7 @@
 
 import { Shield, Menu, Globe, Moon, Sun } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { Avatar, AvatarFallback } from "~/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,18 +13,23 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { useLanguage } from "~/lib/LanguageContext";
 import { useTheme } from "~/lib/ThemeContext";
+import { useUser, useClerk } from "@clerk/nextjs";
 
 interface HeaderProps {
   currentView: string;
   onViewChange: (view: string) => void;
-  userName?: string;
-  planType?: "free" | "premium";
 }
 
-export function Header({ currentView, onViewChange, userName, planType = "premium" }: HeaderProps) {
+export function Header({ currentView, onViewChange }: HeaderProps) {
   const { language, setLanguage, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
-  const defaultUserName = userName || (language === 'ro' ? 'Utilizator' : 'User');
+  const { user } = useUser();
+  const { signOut } = useClerk();
+  
+  const userName = user?.fullName ?? user?.firstName ?? (language === 'ro' ? 'Utilizator' : 'User');
+  const userEmail = user?.primaryEmailAddress?.emailAddress;
+  const userImage = user?.imageUrl;
+  const planType = user?.publicMetadata?.plan as string ?? "free";
   
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
@@ -94,7 +99,7 @@ export function Header({ currentView, onViewChange, userName, planType = "premiu
           </Button>
 
           <div className="hidden md:block text-right">
-            <p className="text-sm text-gray-900 dark:text-white">{defaultUserName}</p>
+            <p className="text-sm text-gray-900 dark:text-white">{userName}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {planType === "premium" ? t.header.premiumPlan : t.header.freePlan}
             </p>
@@ -104,20 +109,33 @@ export function Header({ currentView, onViewChange, userName, planType = "premiu
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar>
+                  {userImage && <AvatarImage src={userImage} alt={userName} />}
                   <AvatarFallback className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
-                    {defaultUserName.charAt(0).toUpperCase()}
+                    {userName.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 dark:bg-gray-800 dark:border-gray-700">
-              <DropdownMenuLabel className="dark:text-white">{t.header.myAccount}</DropdownMenuLabel>
+              <DropdownMenuLabel className="dark:text-white">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium">{userName}</p>
+                  {userEmail && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{userEmail}</p>
+                  )}
+                </div>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator className="dark:bg-gray-700" />
               <DropdownMenuItem className="dark:text-gray-300 dark:hover:bg-gray-700">{t.header.settings}</DropdownMenuItem>
               <DropdownMenuItem className="dark:text-gray-300 dark:hover:bg-gray-700">{t.header.browserExtension}</DropdownMenuItem>
               <DropdownMenuItem className="dark:text-gray-300 dark:hover:bg-gray-700">{t.header.support}</DropdownMenuItem>
               <DropdownMenuSeparator className="dark:bg-gray-700" />
-              <DropdownMenuItem className="text-red-600 dark:text-red-400 dark:hover:bg-gray-700">{t.header.logout}</DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-red-600 dark:text-red-400 dark:hover:bg-gray-700"
+                onClick={() => void signOut()}
+              >
+                {t.header.logout}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

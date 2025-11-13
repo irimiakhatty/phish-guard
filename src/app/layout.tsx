@@ -10,8 +10,7 @@ import { extractRouterConfig } from "uploadthing/server";
 import { ourFileRouter } from "./api/uploadthing/core";
 import { Toaster } from "~/components/ui/sonner";
 import { CSPostHogProvider } from "./_analytics/provider";
-import { LanguageProvider } from "~/lib/LanguageContext";
-import { ThemeProvider } from "~/lib/ThemeContext";
+import { Providers } from "~/components/providers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -45,16 +44,14 @@ export default function RootLayout({
             routerConfig={extractRouterConfig(ourFileRouter)}
           />
           <body className={`font-sans ${inter.variable}`}>
-            <ThemeProvider>
-              <LanguageProvider>
-                <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-                  {children}
-                  {modal}
-                </div>
-                <div id="modal-root" />
-                <Toaster />
-              </LanguageProvider>
-            </ThemeProvider>
+            <Providers>
+              <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+                {children}
+                {modal}
+              </div>
+              <div id="modal-root" />
+              <Toaster />
+            </Providers>
           </body>
         </html>
       </CSPostHogProvider>
