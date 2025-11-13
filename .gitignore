@@ -43,7 +43,3 @@ yarn-error.log*
 
 # Sentry Config File
 .sentryclirc
-
-# Figma export/temp folders
-_figma_temp/
-figma-import/
