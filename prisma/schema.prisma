@@ -1,0 +1,117 @@
+// PhishGuard Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User's email accounts connected to PhishGuard
+model EmailAccount {
+  id            String   @id @default(cuid())
+  userId        String   // Clerk user ID
+  email         String
+  provider      String   // "outlook", "gmail", etc.
+  accessToken   String?  @db.Text
+  refreshToken  String?  @db.Text
+  tokenExpiry   DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  scans         Scan[]
+
+  @@unique([userId, email])
+  @@index([userId])
+}
+
+// Individual scans/analyses performed
+model Scan {
+  id              String   @id @default(cuid())
+  userId          String   // Clerk user ID
+  emailAccountId  String?
+  
+  // What was scanned
+  contentType     String   // "email", "url", "text", "image"
+  content         String   @db.Text
+  subject         String?
+  sender          String?
+  url             String?
+  
+  // Analysis results
+  riskLevel       String   // "safe", "low", "medium", "high", "critical"
+  isPhishing      Boolean  @default(false)
+  confidence      Float    @default(0) // 0-1 confidence score
+  
+  // Timing
+  scanDuration    Int?     // milliseconds
+  createdAt       DateTime @default(now())
+  
+  emailAccount    EmailAccount? @relation(fields: [emailAccountId], references: [id])
+  threats         Threat[]
+  indicators      Indicator[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([riskLevel])
+}
+
+// Specific threats detected in a scan
+model Threat {
+  id          String   @id @default(cuid())
+  scanId      String
+  
+  type        String   // "phishing", "malware", "spam", "suspicious_link", etc.
+  severity    String   // "low", "medium", "high", "critical"
+  title       String
+  description String   @db.Text
+  
+  // Threat details
+  url         String?
+  domain      String?
+  ipAddress   String?
+  
+  createdAt   DateTime @default(now())
+  
+  scan        Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@index([scanId])
+  @@index([type])
+}
+
+// Indicators that triggered the threat detection
+model Indicator {
+  id          String   @id @default(cuid())
+  scanId      String
+  
+  category    String   // "urgent_language", "suspicious_domain", "grammar_errors", etc.
+  description String
+  severity    String   // "info", "warning", "danger"
+  matched     String?  // The actual text/pattern that matched
+  
+  scan        Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@index([scanId])
+}
+
+// User statistics (cached for performance)
+model UserStats {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  
+  totalScans          Int      @default(0)
+  threatsBlocked      Int      @default(0)
+  emailsScanned       Int      @default(0)
+  lastScanAt          DateTime?
+  
+  // This month stats
+  monthlyScans        Int      @default(0)
+  monthlyThreats      Int      @default(0)
+  monthStartDate      DateTime @default(now())
+  
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId])
+}
