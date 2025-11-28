@@ -166,7 +166,7 @@ importers:
         version: 18.2.0(react@18.2.0)
       react-hook-form:
         specifier: ^7.66.0
-        version: 7.66.1(react@18.2.0)
+        version: 7.67.0(react@18.2.0)
       react-resizable-panels:
         specifier: ^3.0.6
         version: 3.0.6(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -230,10 +230,10 @@ importers:
         version: 8.5.6
       prettier:
         specifier: ^3.2.5
-        version: 3.7.1
+        version: 3.7.2
       prettier-plugin-tailwindcss:
         specifier: ^0.5.11
-        version: 0.5.14(prettier@3.7.1)
+        version: 0.5.14(prettier@3.7.2)
       prisma:
         specifier: ^6.19.0
         version: 6.19.0(typescript@5.9.3)
@@ -3527,8 +3527,8 @@ packages:
       prettier-plugin-svelte:
         optional: true
 
-  prettier@3.7.1:
-    resolution: {integrity: sha512-RWKXE4qB3u5Z6yz7omJkjWwmTfLdcbv44jUVHC5NpfXwFGzvpQM798FGv/6WNK879tc+Cn0AAyherCl1KjbyZQ==}
+  prettier@3.7.2:
+    resolution: {integrity: sha512-n3HV2J6QhItCXndGa3oMWvWFAgN1ibnS7R9mt6iokScBOC0Ul9/iZORmU2IWUMcyAQaMPjTlY3uT34TqocUxMA==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -3576,8 +3576,8 @@ packages:
     peerDependencies:
       react: ^18.2.0
 
-  react-hook-form@7.66.1:
-    resolution: {integrity: sha512-2KnjpgG2Rhbi+CIiIBQQ9Df6sMGH5ExNyFl4Hw9qO7pIqMBR8Bvu9RQyjl3JM4vehzCh9soiNUM/xYMswb2EiA==}
+  react-hook-form@7.67.0:
+    resolution: {integrity: sha512-E55EOwKJHHIT/I6J9DmQbCWToAYSw9nN5R57MZw9rMtjh+YQreMDxRLfdjfxQbiJ3/qbg3Z02wGzBX4M+5fMtQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
@@ -7531,11 +7531,11 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier-plugin-tailwindcss@0.5.14(prettier@3.7.1):
+  prettier-plugin-tailwindcss@0.5.14(prettier@3.7.2):
     dependencies:
-      prettier: 3.7.1
+      prettier: 3.7.2
 
-  prettier@3.7.1: {}
+  prettier@3.7.2: {}
 
   prisma@6.19.0(typescript@5.9.3):
     dependencies:
@@ -7580,7 +7580,7 @@ snapshots:
       react: 18.2.0
       scheduler: 0.23.2
 
-  react-hook-form@7.66.1(react@18.2.0):
+  react-hook-form@7.67.0(react@18.2.0):
     dependencies:
       react: 18.2.0
 
