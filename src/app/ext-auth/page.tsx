@@ -81,6 +81,7 @@ export default function ExtensionAuthPage() {
             <div className="rounded-lg border p-8 shadow-lg">
                 <h1 className="mb-4 text-2xl font-bold">PhishGuard Extension Login</h1>
                 <p className="text-lg">{status}</p>
+                <p className="mt-4 text-xs text-gray-400">v1.3-debug</p>
             </div>
         </div>
     );
