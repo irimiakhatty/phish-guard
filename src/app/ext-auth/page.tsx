@@ -27,8 +27,8 @@ export default function ExtensionAuthPage() {
 
             try {
                 const token = await getToken();
+                setStatus(`Token generated. Sending to Extension ID: ${extensionId}...`);
 
-                // Send to Extension
                 // @ts-ignore
                 if (window.chrome && window.chrome.runtime) {
                     // @ts-ignore
@@ -38,22 +38,30 @@ export default function ExtensionAuthPage() {
                         user: {
                             id: userId,
                             email: user?.primaryEmailAddress?.emailAddress,
-                            plan: "free" // Fetch real plan from DB if needed
+                            plan: "free"
                         }
                     }, (response: any) => {
+                        // Check for Chrome runtime error
+                        // @ts-ignore
+                        if (window.chrome.runtime.lastError) {
+                            // @ts-ignore
+                            setStatus(`Chrome Error: ${window.chrome.runtime.lastError.message}`);
+                            return;
+                        }
+
                         if (response && response.success) {
                             setStatus("Success! You can close this tab.");
                         } else {
-                            setStatus("Extension not found or connection failed. Make sure the extension is installed.");
+                            setStatus("Extension connected but returned failure.");
                         }
                     });
                 } else {
-                    setStatus("Chrome Extension API not found.");
+                    setStatus("Error: 'chrome.runtime' not found. Are you using Chrome?");
                 }
 
-            } catch (e) {
+            } catch (e: any) {
                 console.error(e);
-                setStatus("Error generating token.");
+                setStatus(`Error: ${e.message || "Unknown error"}`);
             }
         }
 
