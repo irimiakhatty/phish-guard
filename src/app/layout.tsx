@@ -33,7 +33,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <CSPostHogProvider>
-        <html lang="en" suppressHydrationWarning>
+        <html lang="en" suppressHydrationWarning style={{ scrollbarGutter: 'stable' }}>
           <NextSSRPlugin
             /**
              * The `extractRouterConfig` will extract **only** the route configs

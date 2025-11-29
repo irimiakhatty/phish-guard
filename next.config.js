@@ -26,6 +26,10 @@ const coreConfig = {
         source: "/ingest/:path*",
         destination: "https://us.i.posthog.com/:path*",
       },
+      {
+        source: "/pricing",
+        destination: "/?view=pricing",
+      },
     ];
   },
 };

@@ -1,62 +1,95 @@
 // --- CONFIGURATION ---
-let lastUrl = location.href;
+let lastScannedTextHash = "";
 let scanTimeout = null;
 
-// --- 1. TEXT EXTRACTION ---
-function getEmailContent() {
-    // Heuristic: Try to find the main email body container
-    // Gmail: .a3s.aiL (often used for message body)
-    // Outlook: .ReadingPane (generic)
-
-    let bodyText = "";
-
-    // Try Gmail specific selectors
-    const gmailBody = document.querySelector('.a3s.aiL');
-    if (gmailBody) {
-        bodyText = gmailBody.innerText;
-    } else {
-        // Fallback: Get all visible text, but limit length
-        bodyText = document.body.innerText;
+// --- 1. UTILS ---
+function hashCode(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0; // Convert to 32bit integer
     }
-
-    return bodyText.substring(0, 2000); // Limit to 2000 chars
+    return hash;
 }
 
-// --- 2. SCANNING LOGIC ---
+// --- 2. TEXT EXTRACTION ---
+function getEmailContent() {
+    let bodyText = "";
+
+    // GMAIL SELECTORS
+    // .a3s.aiL = Message body container
+    // .hP = Subject line (optional, but good for context)
+    const gmailBodies = document.querySelectorAll('.a3s.aiL');
+    if (gmailBodies.length > 0) {
+        // Get the last one (usually the open email in conversation view)
+        // Or concatenate all? Let's take the last visible one.
+        for (let i = gmailBodies.length - 1; i >= 0; i--) {
+            if (gmailBodies[i].offsetParent !== null) { // Check visibility
+                bodyText += gmailBodies[i].innerText + "\n";
+                break; // Only scan the latest/active email
+            }
+        }
+    }
+
+    // OUTLOOK SELECTORS
+    // [aria-label="Message body"]
+    const outlookBody = document.querySelector('[aria-label="Message body"]');
+    if (outlookBody) {
+        bodyText += outlookBody.innerText;
+    }
+
+    // Fallback for Outlook Reading Pane
+    if (!bodyText) {
+        const readingPane = document.querySelector('.ReadingPane');
+        if (readingPane) bodyText += readingPane.innerText;
+    }
+
+    return bodyText.trim().substring(0, 3000); // Limit to 3000 chars
+}
+
+// --- 3. SCANNING LOGIC ---
 function triggerScan() {
     const text = getEmailContent();
     const url = location.href;
 
-    // Don't scan if text is too short (likely loading or empty)
-    if (text.length < 50) return;
+    // 1. Validation
+    if (text.length < 50) return; // Too short
 
-    console.log("PhishGuard: Auto-scanning page...");
+    // 2. Deduplication
+    const currentHash = hashCode(text);
+    if (currentHash === lastScannedTextHash) return; // Already scanned
 
+    lastScannedTextHash = currentHash;
+    console.log("PhishGuard: Auto-scanning new content...");
+
+    // 3. Send to Background
     chrome.runtime.sendMessage({
-        action: "scan_page", // Re-use existing action, or use "auto_scan" if we want distinct logic
+        action: "scan_page",
         source: "auto",
         text: text,
         url: url
     }, (response) => {
         if (chrome.runtime.lastError) return;
-        console.log("PhishGuard Auto-Scan Result:", response);
+        // console.log("PhishGuard Auto-Scan Result:", response);
     });
 }
 
 // Debounce scan to avoid multiple calls during render
 function scheduleScan() {
     if (scanTimeout) clearTimeout(scanTimeout);
-    scanTimeout = setTimeout(triggerScan, 1500); // Wait 1.5s after changes stop
+    scanTimeout = setTimeout(triggerScan, 2000); // Wait 2s for full render
 }
 
-// --- 3. OBSERVERS ---
+// --- 4. OBSERVERS ---
 
 // A. URL Change Observer (for SPA navigation)
+let lastUrl = location.href;
 new MutationObserver(() => {
     const url = location.href;
     if (url !== lastUrl) {
         lastUrl = url;
-        console.log("PhishGuard: URL Changed detected.");
+        lastScannedTextHash = ""; // Reset hash on navigation
         scheduleScan();
     }
 }).observe(document, { subtree: true, childList: true });
@@ -64,7 +97,6 @@ new MutationObserver(() => {
 // B. DOM Mutation Observer (for email content loading)
 const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
-        // Check if nodes were added (email body loading)
         if (mutation.addedNodes.length > 0) {
             scheduleScan();
             break;
@@ -72,7 +104,7 @@ const observer = new MutationObserver((mutations) => {
     }
 });
 
-// Start observing the body for content changes
+// Start observing
 observer.observe(document.body, {
     childList: true,
     subtree: true
