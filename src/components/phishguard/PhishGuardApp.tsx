@@ -12,8 +12,15 @@ export default function PhishGuardApp() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const initialView = searchParams.get("view") as "dashboard" | "analyze" | "pricing" | null;
-  const [currentView, setCurrentView] = useState<"dashboard" | "analyze" | "pricing">(initialView || "dashboard");
+  const initialViewParam = searchParams.get("view") as "dashboard" | "analyze" | "pricing" | null;
+
+  let startView: "dashboard" | "analyze" | "pricing" = "dashboard";
+  if (pathname === "/pricing") startView = "pricing";
+  else if (pathname === "/analyze") startView = "analyze";
+  else if (pathname === "/dashboard") startView = "dashboard";
+  else if (initialViewParam) startView = initialViewParam;
+
+  const [currentView, setCurrentView] = useState<"dashboard" | "analyze" | "pricing">(startView);
 
   // Sync state with URL when view changes
   const handleViewChange = (view: "dashboard" | "analyze" | "pricing") => {
@@ -25,13 +32,16 @@ export default function PhishGuardApp() {
     }
   };
 
-  // Sync URL with state on initial load (if view param exists)
+  // Sync URL with state on initial load and path changes
   useEffect(() => {
-    const viewParam = searchParams.get("view") as "dashboard" | "analyze" | "pricing" | null;
-    if (viewParam && viewParam !== currentView) {
-      setCurrentView(viewParam);
+    if (pathname === "/pricing") setCurrentView("pricing");
+    else if (pathname === "/analyze") setCurrentView("analyze");
+    else if (pathname === "/dashboard") setCurrentView("dashboard");
+    else {
+      const viewParam = searchParams.get("view") as "dashboard" | "analyze" | "pricing" | null;
+      if (viewParam) setCurrentView(viewParam);
     }
-  }, [searchParams]);
+  }, [pathname, searchParams]);
 
   return (
     <>
