@@ -71,7 +71,8 @@ export default function ExtensionAuthPage() {
     }
 
     if (!userId) {
-        const redirectUrl = extensionId ? `/ext-auth?ext_id=${extensionId}` : '/ext-auth';
+        const baseUrl = "https://phish-guard-rho.vercel.app";
+        const redirectUrl = extensionId ? `${baseUrl}/ext-auth?ext_id=${extensionId}` : `${baseUrl}/ext-auth`;
         return <RedirectToSignIn redirectUrl={redirectUrl} />;
     }
 
