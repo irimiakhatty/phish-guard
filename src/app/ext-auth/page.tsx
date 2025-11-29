@@ -1,20 +1,27 @@
 "use client";
 
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth, useUser, RedirectToSignIn } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
-
-// REPLACE WITH YOUR ACTUAL EXTENSION ID FROM CHROME://EXTENSIONS
-const EXTENSION_ID = "YOUR_EXTENSION_ID_HERE";
+import { useSearchParams } from "next/navigation";
 
 export default function ExtensionAuthPage() {
     const { isLoaded, userId, getToken } = useAuth();
     const { user } = useUser();
     const [status, setStatus] = useState("Authenticating...");
+    const searchParams = useSearchParams();
+    const extensionId = searchParams.get("ext_id");
 
     useEffect(() => {
         async function sendToken() {
-            if (!isLoaded || !userId) {
-                setStatus("Please sign in to continue.");
+            if (!isLoaded) return;
+
+            if (!userId) {
+                // RedirectToSignIn component will handle this
+                return;
+            }
+
+            if (!extensionId) {
+                setStatus("Error: Missing Extension ID. Please open this page from the extension.");
                 return;
             }
 
@@ -25,7 +32,7 @@ export default function ExtensionAuthPage() {
                 // @ts-ignore
                 if (window.chrome && window.chrome.runtime) {
                     // @ts-ignore
-                    window.chrome.runtime.sendMessage(EXTENSION_ID, {
+                    window.chrome.runtime.sendMessage(extensionId, {
                         action: "AUTH_HANDOFF",
                         token: token,
                         user: {
@@ -51,7 +58,22 @@ export default function ExtensionAuthPage() {
         }
 
         sendToken();
-    }, [isLoaded, userId, getToken, user]);
+    }, [isLoaded, userId, getToken, user, extensionId]);
+
+    if (!isLoaded) {
+        return (
+            <div className="flex min-h-screen flex-col items-center justify-center p-4">
+                <div className="rounded-lg border p-8 shadow-lg">
+                    <p className="text-lg">Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!userId) {
+        const redirectUrl = extensionId ? `/ext-auth?ext_id=${extensionId}` : '/ext-auth';
+        return <RedirectToSignIn redirectUrl={redirectUrl} />;
+    }
 
     return (
         <div className="flex min-h-screen flex-col items-center justify-center p-4">

@@ -84,8 +84,8 @@ async function predict(text, url) {
 // --- 4. MESSAGE HANDLING ---
 async function logIncident(data) {
     try {
-        // Retrieve API URL from storage (default to localhost:3000)
-        const { apiUrl } = await chrome.storage.sync.get({ apiUrl: 'http://localhost:3000' });
+        // Retrieve API URL from storage (default to production)
+        const { apiUrl } = await chrome.storage.sync.get({ apiUrl: 'https://phish-guard-rho.vercel.app' });
 
         const response = await fetch(`${apiUrl}/api/incidents`, {
             method: 'POST',

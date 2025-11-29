@@ -1,147 +1,55 @@
-color: #333;
-}
+<!DOCTYPE html>
+<html lang="en">
 
-h2 {
-color: #2c3e50;
-text-align: center;
-margin-bottom: 20px;
-font-size: 24px;
-}
-
-.container {
-background: white;
-padding: 15px;
-border-radius: 8px;
-box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.hidden {
-display: none !important;
-}
-
-label {
-font-weight: 600;
-margin-bottom: 5px;
-display: block;
-font-size: 14px;
-}
-
-input,
-textarea {
-width: 100%;
-padding: 10px;
-margin-bottom: 15px;
-border: 1px solid #ddd;
-border-radius: 4px;
-box-sizing: border-box;
-font-family: inherit;
-}
-
-textarea {
-height: 80px;
-resize: vertical;
-}
-
-.btn {
-width: 100%;
-padding: 12px;
-background: #3498db;
-color: white;
-border: none;
-cursor: pointer;
-font-size: 16px;
-border-radius: 4px;
-transition: background 0.3s;
-font-weight: 600;
-}
-
-.btn:hover {
-background: #2980b9;
-}
-
-.btn-secondary {
-background: #95a5a6;
-margin-top: 10px;
-}
-
-.btn-secondary:hover {
-background: #7f8c8d;
-}
-
-#result {
-margin-top: 15px;
-text-align: center;
-font-size: 16px;
-}
-
-.safe {
-color: #27ae60;
-font-weight: bold;
-}
-
-.phish {
-color: #c0392b;
-font-weight: bold;
-}
-
-.error {
-color: #e74c3c;
-font-size: 14px;
-margin-top: 5px;
-text-align: center;
-}
-
-.loader {
-display: none;
-text-align: center;
-margin-top: 15px;
-color: #7f8c8d;
-}
-
-.info-box {
-background: #e8f6f3;
-color: #16a085;
-padding: 10px;
-border-radius: 4px;
-font-size: 13px;
-margin-bottom: 15px;
-text-align: center;
-}
-</style>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishGuard</title>
+  <link rel="stylesheet" href="popup.css">
 </head>
 
 <body>
-  <h2>🛡️ PhishGuard</h2>
+  <div class="container">
+    <img src="assets/logo.png" alt="PhishGuard Logo" class="logo">
+    <h2>PhishGuard</h2>
 
-  <!-- LOGIN SECTION -->
-  <div id="login-section" class="container">
-    <div class="info-box">Please log in to access PhishGuard.</div>
+    <!-- LOGIN SECTION -->
+    <div id="login-section">
+      <div class="info-box">Please log in to access PhishGuard features.</div>
 
-    <button id="loginBtn" class="btn">Login with PhishGuard</button>
+      <div style="margin-top: 1rem;">
+        <button id="loginBtn" class="btn btn-primary">Login with PhishGuard</button>
+      </div>
 
-    <div id="loginError" class="error"></div>
-    <p style="text-align: center; font-size: 12px; margin-top: 10px;">
-      This will open a new tab to authenticate securely.
-    </p>
-  </div>
+      <div id="loginError" class="error"></div>
+      <p style="text-align: center; font-size: 0.75rem; color: hsl(var(--muted-foreground)); margin-top: 1rem;">
+        Secure authentication via web app.
+      </p>
+    </div>
 
-  <!-- SCAN SECTION -->
-  <div id="scan-section" class="container hidden">
-    <div id="subscriptionInfo" class="info-box">Plan: Free | Scans: 10/10</div>
+    <!-- SCAN SECTION -->
+    <div id="scan-section" class="hidden">
+      <div id="subscriptionInfo" class="info-box">Plan: Free | Scans: 10/10</div>
 
-    <label>Email Content / Text:</label>
-    <textarea id="emailText" placeholder="Paste email text here..."></textarea>
+      <div style="margin-top: 1rem;">
+        <label for="emailText">Email Content / Text</label>
+        <textarea id="emailText" placeholder="Paste email text here..."></textarea>
+      </div>
 
-    <label>URL to Check:</label>
-    <input type="text" id="urlText" placeholder="https://example.com">
+      <div style="margin-top: 1rem;">
+        <label for="urlText">URL to Check</label>
+        <input type="text" id="urlText" placeholder="https://example.com">
+      </div>
 
-    <button id="scanBtn" class="btn">🔍 SCAN NOW</button>
-    <button id="dashboardBtn" class="btn btn-secondary">📊 Dashboard</button>
-    <button id="logoutBtn" class="btn"
-      style="background: transparent; color: #7f8c8d; border: 1px solid #ddd; margin-top: 10px;">Log Out</button>
+      <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+        <button id="scanBtn" class="btn btn-primary">SCAN NOW</button>
+        <button id="dashboardBtn" class="btn btn-secondary">Dashboard</button>
+        <button id="logoutBtn" class="btn btn-outline">Log Out</button>
+      </div>
 
-    <div class="loader" id="loader">Analyzing with AI...</div>
-    <div id="result"></div>
+      <div class="loader" id="loader">Analyzing with AI...</div>
+      <div id="result"></div>
+    </div>
   </div>
 
   <script src="tf.min.js"></script>

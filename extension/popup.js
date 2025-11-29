@@ -7,6 +7,8 @@ const loginBtn = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const loginError = document.getElementById('loginError');
 const subscriptionInfo = document.getElementById('subscriptionInfo');
+const dashboardBtn = document.getElementById('dashboardBtn');
+const scanBtn = document.getElementById('scanBtn');
 
 // --- AUTHENTICATION ---
 
@@ -21,28 +23,31 @@ async function checkAuth() {
 }
 
 function showLoginUI() {
-  loginSection.classList.remove('hidden');
-  scanSection.classList.add('hidden');
+  if (loginSection) loginSection.classList.remove('hidden');
+  if (scanSection) scanSection.classList.add('hidden');
 }
 
 function showScanUI(plan, scans) {
-  loginSection.classList.add('hidden');
-  scanSection.classList.remove('hidden');
+  if (loginSection) loginSection.classList.add('hidden');
+  if (scanSection) scanSection.classList.remove('hidden');
 
   // Update Info Box
-  if (plan === 'free') {
-    subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: ${scans !== undefined ? scans : 10}`;
-  } else if (plan === 'paid') {
-    subscriptionInfo.innerText = `Plan: Premium | Unlimited Scans`;
-  } else {
-    subscriptionInfo.innerText = `Plan: Unknown`;
+  if (subscriptionInfo) {
+    if (plan === 'free') {
+      subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: ${scans !== undefined ? scans : 10}`;
+    } else if (plan === 'paid') {
+      subscriptionInfo.innerText = `Plan: Premium | Unlimited Scans`;
+    } else {
+      subscriptionInfo.innerText = `Plan: Unknown`;
+    }
   }
 }
 
 async function login() {
-  // Open the Web App Auth Page
-  chrome.storage.sync.get({ apiUrl: 'http://localhost:3000' }, (items) => {
-    chrome.tabs.create({ url: `${items.apiUrl}/ext-auth` });
+  // Open the Web App Auth Page with Extension ID
+  chrome.storage.sync.get({ apiUrl: 'https://phish-guard-rho.vercel.app' }, (items) => {
+    const extId = chrome.runtime.id;
+    chrome.tabs.create({ url: `${items.apiUrl}/ext-auth?ext_id=${extId}` });
   });
 }
 
@@ -67,12 +72,12 @@ async function scan() {
   const loader = document.getElementById('loader');
 
   if (!textInput && !urlInput) {
-    resultDiv.innerHTML = "<span style='color:orange'>Please enter text or a URL.</span>";
+    if (resultDiv) resultDiv.innerHTML = "<span class='warning'>Please enter text or a URL.</span>";
     return;
   }
 
-  loader.style.display = "block";
-  resultDiv.innerHTML = "";
+  if (loader) loader.style.display = "block";
+  if (resultDiv) resultDiv.innerHTML = "";
 
   // Send message to background script for analysis
   chrome.runtime.sendMessage({
@@ -80,23 +85,27 @@ async function scan() {
     text: textInput,
     url: urlInput
   }, (response) => {
-    loader.style.display = "none";
+    if (loader) loader.style.display = "none";
 
     if (chrome.runtime.lastError) {
-      resultDiv.innerText = "Error connecting to background service.";
+      if (resultDiv) resultDiv.innerText = "Error connecting to background service.";
       console.error(chrome.runtime.lastError);
       return;
     }
 
     // Handle Subscription Errors
     if (response.error === "LIMIT_REACHED") {
-      resultDiv.innerHTML = `
-        <div style="color: #e74c3c; font-weight: bold;">⚠️ Limit Reached</div>
-        <div style="font-size: 13px; margin-top: 5px;">You have used all your free scans.</div>
-        <button class="btn" style="background: #27ae60; margin-top: 10px;">Upgrade to Premium</button>
-      `;
+      if (resultDiv) {
+        resultDiv.innerHTML = `
+          <div class="limit-reached">
+            <div class="limit-title">Limit Reached</div>
+            <div class="limit-desc">You have used all your free scans.</div>
+            <button class="btn btn-primary" style="background-color: #16a34a;">Upgrade to Premium</button>
+          </div>
+        `;
+      }
       // Update UI count to 0 just in case
-      subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: 0`;
+      if (subscriptionInfo) subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: 0`;
       return;
     }
 
@@ -109,7 +118,7 @@ async function scan() {
     // Update UI with new remaining count if provided
     if (response.scansRemaining !== undefined) {
       chrome.storage.sync.get(['userPlan'], (items) => {
-        if (items.userPlan === 'free') {
+        if (items.userPlan === 'free' && subscriptionInfo) {
           subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: ${response.scansRemaining}`;
         }
       });
@@ -118,35 +127,42 @@ async function scan() {
     const { textScore, urlScore } = response;
     console.log(`Text Score: ${textScore}, URL Score: ${urlScore}`);
 
-    if (textScore > 0.5 || urlScore > 0.5) {
-      resultDiv.innerHTML = "<span class='phish'>⚠️ PHISHING DETECTED!</span>";
-      if (textScore > 0.5) resultDiv.innerHTML += "<br><small>Suspicious Text Content</small>";
-      if (urlScore > 0.5) resultDiv.innerHTML += "<br><small>Malicious URL Link</small>";
-    } else {
-      resultDiv.innerHTML = "<span class='safe'>✅ LOOKS SAFE</span>";
+    if (resultDiv) {
+      if (textScore > 0.5 || urlScore > 0.5) {
+        resultDiv.innerHTML = "<span class='phish'>PHISHING DETECTED!</span>";
+        if (textScore > 0.5) resultDiv.innerHTML += "<br><small>Suspicious Text Content</small>";
+        if (urlScore > 0.5) resultDiv.innerHTML += "<br><small>Malicious URL Link</small>";
+      } else {
+        resultDiv.innerHTML = "<span class='safe'>LOOKS SAFE</span>";
+      }
     }
   });
 }
 
 // --- EVENT LISTENERS ---
 
-loginBtn.addEventListener('click', login);
-logoutBtn.addEventListener('click', logout);
-document.getElementById('scanBtn').addEventListener('click', scan);
+document.addEventListener('DOMContentLoaded', () => {
+  // Attach listeners
+  if (loginBtn) loginBtn.addEventListener('click', login);
+  if (logoutBtn) logoutBtn.addEventListener('click', logout);
+  if (scanBtn) scanBtn.addEventListener('click', scan);
 
-document.getElementById('dashboardBtn').addEventListener('click', () => {
-  chrome.storage.sync.get({ apiUrl: 'http://localhost:3000' }, (items) => {
-    chrome.tabs.create({ url: items.apiUrl });
-  });
-});
+  if (dashboardBtn) {
+    dashboardBtn.addEventListener('click', () => {
+      chrome.storage.sync.get({ apiUrl: 'https://phish-guard-rho.vercel.app' }, (items) => {
+        chrome.tabs.create({ url: `${items.apiUrl}/dashboard` });
+      });
+    });
+  }
 
-// Auto-fill URL
-window.addEventListener('DOMContentLoaded', () => {
-  checkAuth(); // Initial Auth Check
+  // Initial Auth Check
+  checkAuth();
 
+  // Auto-fill URL
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs && tabs[0] && tabs[0].url) {
-      document.getElementById('urlText').value = tabs[0].url;
+      const urlInput = document.getElementById('urlText');
+      if (urlInput) urlInput.value = tabs[0].url;
     }
   });
 });
