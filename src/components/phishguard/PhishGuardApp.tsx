@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "~/components/phishguard/Header";
 import { Dashboard } from "~/components/phishguard/Dashboard";
 import { ManualAnalysis } from "~/components/phishguard/ManualAnalysis";
 import { Pricing } from "~/components/phishguard/Pricing";
-
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useEffect } from "react";
 
 export default function PhishGuardApp() {
   const searchParams = useSearchParams();
@@ -20,14 +18,11 @@ export default function PhishGuardApp() {
   // Sync state with URL when view changes
   const handleViewChange = (view: "dashboard" | "analyze" | "pricing") => {
     setCurrentView(view);
-    const params = new URLSearchParams(searchParams);
-    params.set("view", view);
-    const newUrl = `${pathname}?${params.toString()}`;
-
-    // Use pushState for immediate visual update and history entry
-    window.history.pushState(null, '', newUrl);
-    // Use router.replace to sync Next.js router state without adding another history entry (optional but good for consistency)
-    router.replace(newUrl, { scroll: false });
+    if (view === "dashboard") {
+      router.push("/dashboard");
+    } else {
+      router.push(`/${view}`);
+    }
   };
 
   // Sync URL with state on initial load (if view param exists)

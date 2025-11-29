@@ -30,6 +30,14 @@ const coreConfig = {
         source: "/pricing",
         destination: "/?view=pricing",
       },
+      {
+        source: "/analyze",
+        destination: "/?view=analyze",
+      },
+      {
+        source: "/dashboard",
+        destination: "/?view=dashboard",
+      },
     ];
   },
 };
