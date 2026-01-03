@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Send, Link as LinkIcon, FileText, Image as ImageIcon, Sparkles } from "lucide-react";
+import { Send, Link as LinkIcon, FileText, Image as ImageIcon, Sparkles, AlertTriangle, CheckCircle } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -259,19 +259,77 @@ export function ManualAnalysis() {
             ) : (
               <div className="space-y-4">
                 {result?.isPhishing ? (
-                  <ThreatAlert
-                    level="high"
-                    title={t.manualAnalysis.phishingDetected}
-                    description={t.manualAnalysis.phishingDescription}
-                    indicators={t.threatAlert.phishingIndicators}
-                    recommendations={t.threatAlert.phishingRecommendations}
-                  />
+                  <div className="space-y-4">
+                    <ThreatAlert
+                      level="high"
+                      title={t.manualAnalysis.phishingDetected}
+                      description={t.manualAnalysis.phishingDescription}
+                      indicators={t.threatAlert.phishingIndicators}
+                      recommendations={t.threatAlert.phishingRecommendations}
+                    />
+
+                    {/* Detailed Breakdown - Phishing */}
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                      <h4 className="text-red-900 dark:text-red-300 font-semibold mb-2 flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-2" />
+                        Why we flagged this:
+                      </h4>
+                      <ul className="space-y-2">
+                        {result.textScore > 0.5 && (
+                          <li className="text-sm text-red-700 dark:text-red-400 flex items-start">
+                            <span className="mr-2">•</span>
+                            AI detected suspicious language patterns ({Math.round(result.textScore * 100)}% confidence).
+                          </li>
+                        )}
+                        {result.urlScore > 0.5 && (
+                          <li className="text-sm text-red-700 dark:text-red-400 flex items-start">
+                            <span className="mr-2">•</span>
+                            AI detected a malicious URL structure ({Math.round(result.urlScore * 100)}% confidence).
+                          </li>
+                        )}
+                        {result.reasons && result.reasons.map((reason: string, i: number) => (
+                          <li key={i} className="text-sm text-red-700 dark:text-red-400 flex items-start">
+                            <span className="mr-2">•</span>
+                            {reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                    <h4 className="text-green-900 dark:text-green-300 mb-2">✅ Safe Content</h4>
-                    <p className="text-sm text-green-700 dark:text-green-400">
-                      Our AI did not detect any phishing indicators in this content.
-                    </p>
+                  <div className="space-y-4">
+                    <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                      <h4 className="text-green-900 dark:text-green-300 mb-2 flex items-center">
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Safe Content
+                      </h4>
+                      <p className="text-sm text-green-700 dark:text-green-400">
+                        Our AI did not detect any phishing indicators in this content.
+                      </p>
+                    </div>
+
+                    {/* Detailed Breakdown - Safe */}
+                    <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <h4 className="text-gray-900 dark:text-gray-300 font-semibold mb-2">
+                        Analysis Details:
+                      </h4>
+                      <ul className="space-y-2">
+                        <li className="text-sm text-gray-600 dark:text-gray-400 flex items-start">
+                          <span className="mr-2 text-green-500">✓</span>
+                          No suspicious keywords found.
+                        </li>
+                        <li className="text-sm text-gray-600 dark:text-gray-400 flex items-start">
+                          <span className="mr-2 text-green-500">✓</span>
+                          AI Risk Score: {Math.max(result.textScore, result.urlScore).toFixed(2)} (Low)
+                        </li>
+                        {result.reasons && result.reasons.length === 0 && (
+                          <li className="text-sm text-gray-600 dark:text-gray-400 flex items-start">
+                            <span className="mr-2 text-green-500">✓</span>
+                            No heuristic triggers (urgency, mismatch, etc).
+                          </li>
+                        )}
+                      </ul>
+                    </div>
                   </div>
                 )}
 
