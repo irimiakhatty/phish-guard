@@ -220,7 +220,7 @@ export function ManualAnalysis() {
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700"
               onClick={handleAnalyze}
-              disabled={analyzing || !modelsLoaded}
+              disabled={analyzing}
             >
               {analyzing ? (
                 <>
