@@ -90,6 +90,11 @@ async function predict(text, url) {
     let heuristicScore = 0;
     const lowerText = text ? text.toLowerCase() : "";
 
+    // Provider Mismatch Check
+    if (lowerText.includes("microsoft") && lowerText.includes("@gmail.com")) {
+        heuristicScore += 0.4;
+    }
+
     SUSPICIOUS_KEYWORDS.urgency.forEach(word => {
         if (lowerText.includes(word)) heuristicScore += 0.2;
     });
