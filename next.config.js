@@ -65,7 +65,7 @@ const config = withSentryConfig(
     // Suppresses source map uploading logs during build
     silent: true,
     org: "romanian-american-university",
-    project: "PhishGuard",
+    project: "phish-guard",
   },
   {
     // For all available options, see:
