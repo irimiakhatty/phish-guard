@@ -124,25 +124,29 @@ export function ManualAnalysis() {
         }
       }
 
-      const isPhishing = textScore > 0.5 || urlScore > 0.5;
-      const confidence = Math.max(textScore, urlScore);
+      // Hybrid Scoring Logic
+      const finalScore = Math.max(textScore, urlScore, heuristicScore);
+      const isPhishing = finalScore > 0.5;
+      const confidence = finalScore;
       const riskLevel = isPhishing ? "high" : "safe";
 
-      // Save to DB
-      await scanContent({
+      // 1. Show Result IMMEDIATELY
+      setResult({ isPhishing, textScore, urlScore, heuristicScore, reasons });
+      setShowResult(true);
+
+      // 2. Save to DB (Background - don't block UI)
+      scanContent({
         url: activeTab === "url" ? urlContent : undefined,
         textScore,
         urlScore,
         riskLevel,
         isPhishing,
         confidence
-      });
-
-      setResult({ isPhishing, textScore, urlScore });
-      setShowResult(true);
+      }).catch(err => console.error("Failed to save scan:", err));
 
     } catch (e) {
       console.error("Analysis failed:", e);
+      setLoadError("Analysis failed. Please try again."); // Reuse loadError for general errors
     } finally {
       setAnalyzing(false);
     }
