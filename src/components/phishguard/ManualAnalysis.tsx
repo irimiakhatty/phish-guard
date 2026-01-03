@@ -1,5 +1,5 @@
 "use client";
-// Last updated: 2026-01-03 16:10
+// Last updated: 2026-01-03 17:00 (v1.2)
 
 import { useState, useEffect } from "react";
 import { Send, Link as LinkIcon, FileText, Image as ImageIcon, Sparkles, AlertTriangle, CheckCircle } from "lucide-react";
@@ -242,7 +242,7 @@ export function ManualAnalysis() {
             </Button>
 
             <p className="text-xs text-gray-500 dark:text-gray-500 text-center">
-              {t.manualAnalysis.freeAnalysis}
+              {t.manualAnalysis.freeAnalysis} • v1.2
             </p>
           </CardContent>
         </Card>
