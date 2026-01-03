@@ -31,9 +31,9 @@ function showScanUI(plan, scans) {
 
   // Update Info Box
   if (plan === 'free') {
-    subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: ${scans !== undefined ? scans : 10}`;
+    subscriptionInfo.innerText = `Plan: Free Trial • ${scans !== undefined ? scans : 10} scans left`;
   } else if (plan === 'paid') {
-    subscriptionInfo.innerText = `Plan: Premium | Unlimited Scans`;
+    subscriptionInfo.innerText = `Plan: Premium • Unlimited Scans`;
   } else {
     subscriptionInfo.innerText = `Plan: Unknown`;
   }
@@ -67,12 +67,13 @@ async function scan() {
   const loader = document.getElementById('loader');
 
   if (!textInput && !urlInput) {
-    resultDiv.innerHTML = "<span style='color:orange'>Please enter text or a URL.</span>";
+    resultDiv.innerHTML = "<span style='color:var(--muted-foreground)'>Please enter text or a URL to scan.</span>";
     return;
   }
 
   loader.style.display = "block";
   resultDiv.innerHTML = "";
+  resultDiv.className = ""; // Reset classes
 
   // Send message to background script for analysis
   chrome.runtime.sendMessage({
@@ -91,12 +92,11 @@ async function scan() {
     // Handle Subscription Errors
     if (response.error === "LIMIT_REACHED") {
       resultDiv.innerHTML = `
-        <div style="color: #e74c3c; font-weight: bold;">⚠️ Limit Reached</div>
-        <div style="font-size: 13px; margin-top: 5px;">You have used all your free scans.</div>
-        <button class="btn" style="background: #27ae60; margin-top: 10px;">Upgrade to Premium</button>
+        <div style="color: #dc2626; font-weight: bold;">⚠️ Limit Reached</div>
+        <div style="font-size: 0.8rem; margin-top: 0.5rem;">You have used all your free scans.</div>
       `;
       // Update UI count to 0 just in case
-      subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: 0`;
+      subscriptionInfo.innerText = `Plan: Free Trial • 0 scans left`;
       return;
     }
 
@@ -110,7 +110,7 @@ async function scan() {
     if (response.scansRemaining !== undefined) {
       chrome.storage.sync.get(['userPlan'], (items) => {
         if (items.userPlan === 'free') {
-          subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: ${response.scansRemaining}`;
+          subscriptionInfo.innerText = `Plan: Free Trial • ${response.scansRemaining} scans left`;
         }
       });
     }
@@ -119,11 +119,14 @@ async function scan() {
     console.log(`Text Score: ${textScore}, URL Score: ${urlScore}`);
 
     if (textScore > 0.5 || urlScore > 0.5) {
-      resultDiv.innerHTML = "<span class='phish'>⚠️ PHISHING DETECTED!</span>";
-      if (textScore > 0.5) resultDiv.innerHTML += "<br><small>Suspicious Text Content</small>";
-      if (urlScore > 0.5) resultDiv.innerHTML += "<br><small>Malicious URL Link</small>";
+      resultDiv.className = "result-phish";
+      let content = "<div>⚠️ <strong>PHISHING DETECTED</strong></div>";
+      if (textScore > 0.5) content += "<div style='font-size:0.8rem; margin-top:0.5rem'>Suspicious Text Content</div>";
+      if (urlScore > 0.5) content += "<div style='font-size:0.8rem; margin-top:0.5rem'>Malicious URL Link</div>";
+      resultDiv.innerHTML = content;
     } else {
-      resultDiv.innerHTML = "<span class='safe'>✅ LOOKS SAFE</span>";
+      resultDiv.className = "result-safe";
+      resultDiv.innerHTML = "<div>✅ <strong>LOOKS SAFE</strong></div><div style='font-size:0.8rem; margin-top:0.5rem'>No threats detected.</div>";
     }
   });
 }

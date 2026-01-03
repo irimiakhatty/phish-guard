@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Send, Link as LinkIcon, FileText, Image as ImageIcon, Sparkles } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
@@ -9,21 +9,134 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Badge } from "~/components/ui/badge";
 import { ThreatAlert } from "./ThreatAlert";
 import { useLanguage } from "~/lib/LanguageContext";
+import * as tf from "@tensorflow/tfjs";
+import { scanContent } from "~/server/actions";
+
+// Configuration (Must match extension)
+const TEXT_MAX_LEN = 150;
+const URL_MAX_LEN = 150;
+const TEXT_OOV = "<OOV>";
+const URL_OOV = "<OOV>";
 
 export function ManualAnalysis() {
   const { t, language } = useLanguage();
   const [analyzing, setAnalyzing] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("text");
+  const [textContent, setTextContent] = useState("");
+  const [urlContent, setUrlContent] = useState("");
 
-  const handleAnalyze = () => {
-    setAnalyzing(true);
-    setTimeout(() => {
-      setAnalyzing(false);
-      setShowResult(true);
-    }, 2000);
+  // AI Models
+  const [textModel, setTextModel] = useState<tf.LayersModel | null>(null);
+  const [urlModel, setUrlModel] = useState<tf.LayersModel | null>(null);
+  const [textVocab, setTextVocab] = useState<any>(null);
+  const [urlVocab, setUrlVocab] = useState<any>(null);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+
+  useEffect(() => {
+    async function loadModels() {
+      try {
+        console.log("Loading models...");
+        const tm = await tf.loadLayersModel('/assets/text_model/model.json');
+        const um = await tf.loadLayersModel('/assets/url_model/model.json');
+
+        const tvReq = await fetch('/assets/word_index.json');
+        const tv = await tvReq.json();
+
+        const uvReq = await fetch('/assets/url_char_index.json');
+        const uv = await uvReq.json();
+
+        setTextModel(tm);
+        setUrlModel(um);
+        setTextVocab(tv);
+        setUrlVocab(uv);
+        setModelsLoaded(true);
+        console.log("Models loaded!");
+      } catch (e) {
+        console.error("Failed to load models:", e);
+      }
+    }
+    loadModels();
+  }, []);
+
+  // Preprocessing
+  const preprocessText = (text: string) => {
+    if (!textVocab) return null;
+    const words = text.toLowerCase().replace(/[^\w\s]/gi, '').split(/\s+/);
+    const sequence = words.map(w => textVocab[w] || textVocab[TEXT_OOV] || 1);
+    const padded = new Array(TEXT_MAX_LEN).fill(0);
+    for (let i = 0; i < Math.min(sequence.length, TEXT_MAX_LEN); i++) {
+      padded[i] = sequence[i];
+    }
+    return tf.tensor2d([padded]);
   };
 
-  const sampleText = language === 'ro' 
+  const preprocessURL = (url: string) => {
+    if (!urlVocab) return null;
+    const chars = url.split('');
+    const sequence = chars.map(c => urlVocab[c] || urlVocab[URL_OOV] || 1);
+    const padded = new Array(URL_MAX_LEN).fill(0);
+    for (let i = 0; i < Math.min(sequence.length, URL_MAX_LEN); i++) {
+      padded[i] = sequence[i];
+    }
+    return tf.tensor2d([padded]);
+  };
+
+  const handleAnalyze = async () => {
+    if (!modelsLoaded) return;
+    setAnalyzing(true);
+    setShowResult(false);
+
+    try {
+      let textScore = 0;
+      let urlScore = 0;
+
+      // Predict Text
+      if (activeTab === "text" && textContent && textModel) {
+        const tensor = preprocessText(textContent);
+        if (tensor) {
+          const pred = textModel.predict(tensor) as tf.Tensor;
+          textScore = (await pred.data())[0];
+          tensor.dispose();
+        }
+      }
+
+      // Predict URL
+      if (activeTab === "url" && urlContent && urlModel) {
+        const tensor = preprocessURL(urlContent);
+        if (tensor) {
+          const pred = urlModel.predict(tensor) as tf.Tensor;
+          urlScore = (await pred.data())[0];
+          tensor.dispose();
+        }
+      }
+
+      const isPhishing = textScore > 0.5 || urlScore > 0.5;
+      const confidence = Math.max(textScore, urlScore);
+      const riskLevel = isPhishing ? "high" : "safe";
+
+      // Save to DB
+      await scanContent({
+        url: activeTab === "url" ? urlContent : undefined,
+        textScore,
+        urlScore,
+        riskLevel,
+        isPhishing,
+        confidence
+      });
+
+      setResult({ isPhishing, textScore, urlScore });
+      setShowResult(true);
+
+    } catch (e) {
+      console.error("Analysis failed:", e);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const sampleText = language === 'ro'
     ? "Bună ziua,\n\nContul dumneavoastră PayPal a fost suspendat temporar din cauza activității suspecte. Pentru a-l reactiva, vă rugăm să vă conectați imediat la:\n\nhttps://secure-paypal-verify.xyz/login\n\nAveți la dispoziție 24 de ore pentru a evita închiderea permanentă a contului.\n\nEchipa PayPal"
     : "Hello,\n\nYour PayPal account has been temporarily suspended due to suspicious activity. To reactivate it, please log in immediately at:\n\nhttps://secure-paypal-verify.xyz/login\n\nYou have 24 hours to avoid permanent account closure.\n\nPayPal Team";
 
@@ -38,7 +151,7 @@ export function ManualAnalysis() {
         </div>
         <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700">
           <Sparkles className="w-3 h-3 mr-1" />
-          {t.manualAnalysis.freeTrialActive}
+          {modelsLoaded ? "AI Ready" : "Loading AI..."}
         </Badge>
       </div>
 
@@ -49,7 +162,7 @@ export function ManualAnalysis() {
             <CardTitle className="text-gray-900 dark:text-white">{t.manualAnalysis.enterContent}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Tabs defaultValue="text" className="w-full">
+            <Tabs defaultValue="text" className="w-full" onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-3 dark:bg-gray-800">
                 <TabsTrigger value="text" className="dark:data-[state=active]:bg-gray-700 dark:text-gray-300">
                   <FileText className="w-4 h-4 mr-2" />
@@ -70,6 +183,7 @@ export function ManualAnalysis() {
                   placeholder={t.manualAnalysis.pasteMessage}
                   className="min-h-[200px] resize-none"
                   defaultValue={sampleText}
+                  onChange={(e) => setTextContent(e.target.value)}
                 />
               </TabsContent>
 
@@ -78,6 +192,7 @@ export function ManualAnalysis() {
                   placeholder={t.manualAnalysis.pasteUrl}
                   className="min-h-[200px] resize-none font-mono"
                   defaultValue="https://banc-raiffeisen-verificare.xyz/login?urgent=1&token=abc123"
+                  onChange={(e) => setUrlContent(e.target.value)}
                 />
               </TabsContent>
 
@@ -93,7 +208,7 @@ export function ManualAnalysis() {
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700"
               onClick={handleAnalyze}
-              disabled={analyzing}
+              disabled={analyzing || !modelsLoaded}
             >
               {analyzing ? (
                 <>
@@ -131,13 +246,22 @@ export function ManualAnalysis() {
               </div>
             ) : (
               <div className="space-y-4">
-                <ThreatAlert
-                  level="high"
-                  title={t.manualAnalysis.phishingDetected}
-                  description={t.manualAnalysis.phishingDescription}
-                  indicators={t.threatAlert.phishingIndicators}
-                  recommendations={t.threatAlert.phishingRecommendations}
-                />
+                {result?.isPhishing ? (
+                  <ThreatAlert
+                    level="high"
+                    title={t.manualAnalysis.phishingDetected}
+                    description={t.manualAnalysis.phishingDescription}
+                    indicators={t.threatAlert.phishingIndicators}
+                    recommendations={t.threatAlert.phishingRecommendations}
+                  />
+                ) : (
+                  <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                    <h4 className="text-green-900 dark:text-green-300 mb-2">✅ Safe Content</h4>
+                    <p className="text-sm text-green-700 dark:text-green-400">
+                      Our AI did not detect any phishing indicators in this content.
+                    </p>
+                  </div>
+                )}
 
                 <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                   <h4 className="text-blue-900 dark:text-blue-300 mb-2">💡 {t.manualAnalysis.proTip}</h4>
@@ -147,42 +271,6 @@ export function ManualAnalysis() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="dark:bg-gray-900 dark:border-gray-700">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-4xl font-bold text-gray-900 dark:text-white">
-                3/10
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{t.manualAnalysis.freeAnalysesRemaining}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="dark:bg-gray-900 dark:border-gray-700">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-4xl font-bold text-gray-900 dark:text-white">
-                12
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{t.manualAnalysis.scamsDetected}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="dark:bg-gray-900 dark:border-gray-700">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-4xl font-bold text-gray-900 dark:text-white">
-                5
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{t.manualAnalysis.daysRemaining}</p>
-            </div>
           </CardContent>
         </Card>
       </div>

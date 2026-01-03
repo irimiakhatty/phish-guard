@@ -41,3 +41,30 @@ export async function getDashboardStats() {
         }
     };
 }
+
+export async function scanContent(data: {
+    url?: string;
+    textScore: number;
+    urlScore: number;
+    riskLevel: string;
+    isPhishing: boolean;
+    confidence: number;
+}) {
+    const { userId } = auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const scan = await db.scan.create({
+        data: {
+            userId,
+            contentType: data.url ? "url" : "text",
+            content: data.url || "Manual Text Scan",
+            riskLevel: data.riskLevel,
+            isPhishing: data.isPhishing,
+            confidence: data.confidence,
+            url: data.url,
+            source: "manual_web"
+        }
+    });
+
+    return { success: true, scanId: scan.id };
+}
