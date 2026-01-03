@@ -127,9 +127,6 @@ export function ManualAnalysis() {
         }
       }
 
-      // Ensure variables are defined for hybrid logic
-      if (heuristicScore === undefined) heuristicScore = 0;
-      if (!reasons) reasons = [];
 
       // Hybrid Scoring Logic
       const finalScore = Math.max(textScore, urlScore, heuristicScore);
