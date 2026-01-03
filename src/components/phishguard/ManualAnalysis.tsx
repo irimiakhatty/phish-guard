@@ -304,8 +304,32 @@ export function ManualAnalysis() {
                     <ThreatAlert
                       level="high"
                       title={t.manualAnalysis.phishingDetected}
-                      description={t.manualAnalysis.phishingDescription}
-                      indicators={t.threatAlert.phishingIndicators}
+                      description={(() => {
+                        const lower = textContent.toLowerCase();
+                        if (lower.includes("microsoft")) return "This message appears to be a phishing attempt targeting Microsoft credentials.";
+                        if (lower.includes("paypal")) return "This message appears to be a phishing attempt targeting PayPal credentials.";
+                        if (lower.includes("google") || lower.includes("gmail")) return "This message appears to be a phishing attempt targeting Google credentials.";
+                        if (lower.includes("amazon")) return "This message appears to be a phishing attempt targeting Amazon credentials.";
+                        if (lower.includes("facebook") || lower.includes("meta")) return "This message appears to be a phishing attempt targeting Facebook credentials.";
+                        if (lower.includes("apple") || lower.includes("icloud")) return "This message appears to be a phishing attempt targeting Apple credentials.";
+                        if (lower.includes("netflix")) return "This message appears to be a phishing attempt targeting Netflix credentials.";
+                        return "This message contains patterns commonly associated with phishing attacks.";
+                      })()}
+                      indicators={(() => {
+                        const inds = [];
+                        const lower = textContent.toLowerCase();
+                        const lowerUrl = urlContent.toLowerCase();
+
+                        if (result.reasons.some((r: string) => r.includes("Provider Mismatch"))) inds.push("Provider Mismatch (e.g. Microsoft email to Gmail)");
+                        if (lower.includes("urgent") || lower.includes("immediately") || lower.includes("24 hours")) inds.push("Creates artificial urgency");
+                        if (lowerUrl && !lowerUrl.includes("microsoft.com") && !lowerUrl.includes("paypal.com") && !lowerUrl.includes("google.com")) inds.push("Suspicious/Unverified Domain");
+                        if (result.textScore > 0.8) inds.push("High-confidence AI Detection");
+
+                        // Fallback if empty
+                        if (inds.length === 0) inds.push("Suspicious language patterns detected");
+
+                        return inds;
+                      })()}
                       recommendations={t.threatAlert.phishingRecommendations}
                     />
 
