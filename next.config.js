@@ -16,6 +16,18 @@ const coreConfig = {
     ignoreDuringBuilds: true,
   },
 
+  async headers() {
+    return [
+      {
+        source: "/assets/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET" },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
@@ -52,8 +64,8 @@ const config = withSentryConfig(
 
     // Suppresses source map uploading logs during build
     silent: true,
-    org: "romanian-american-university",
-    project: "phish-guard",
+    org: "Khatteryna",
+    project: "PhishGuard",
   },
   {
     // For all available options, see:
