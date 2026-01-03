@@ -355,20 +355,23 @@ export function ManualAnalysis() {
                         Analysis Details:
                       </h4>
                       <ul className="space-y-2">
-                        <li className="text-sm text-gray-600 dark:text-gray-400 flex items-start">
-                          <span className="mr-2 text-green-500">✓</span>
-                          No suspicious keywords found.
-                        </li>
+                        {result.reasons && result.reasons.length > 0 ? (
+                          result.reasons.map((reason: string, i: number) => (
+                            <li key={i} className="text-sm text-yellow-700 dark:text-yellow-500 flex items-start">
+                              <span className="mr-2">⚠️</span>
+                              {reason} (Low Confidence)
+                            </li>
+                          ))
+                        ) : (
+                          <li className="text-sm text-gray-600 dark:text-gray-400 flex items-start">
+                            <span className="mr-2 text-green-500">✓</span>
+                            No suspicious keywords found.
+                          </li>
+                        )}
                         <li className="text-sm text-gray-600 dark:text-gray-400 flex items-start">
                           <span className="mr-2 text-green-500">✓</span>
                           AI Risk Score: {Math.max(result.textScore, result.urlScore).toFixed(2)} (Low)
                         </li>
-                        {result.reasons && result.reasons.length === 0 && (
-                          <li className="text-sm text-gray-600 dark:text-gray-400 flex items-start">
-                            <span className="mr-2 text-green-500">✓</span>
-                            No heuristic triggers (urgency, mismatch, etc).
-                          </li>
-                        )}
                       </ul>
                     </div>
                   </div>
