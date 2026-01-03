@@ -5,6 +5,14 @@ const TEXT_MAX_LEN = 150;
 const URL_MAX_LEN = 150;
 const TEXT_OOV = "<OOV>";
 const URL_OOV = "<OOV>";
+const PHISHING_THRESHOLD = 0.5;
+
+// Heuristic Keywords (Must match WebApp)
+const SUSPICIOUS_KEYWORDS = {
+    urgency: ["immediately", "urgent", "24 hours", "suspend", "close account", "lock", "restricted"],
+    action: ["verify", "login", "click here", "update", "confirm"],
+    generic: ["dear customer", "dear user", "valued customer"]
+};
 
 let textModel, urlModel;
 let textVocab, urlVocab;
@@ -78,7 +86,22 @@ async function predict(text, url) {
         urlTensor.dispose();
     }
 
-    return { textScore, urlScore };
+    // 3. Heuristic Analysis
+    let heuristicScore = 0;
+    const lowerText = text ? text.toLowerCase() : "";
+
+    SUSPICIOUS_KEYWORDS.urgency.forEach(word => {
+        if (lowerText.includes(word)) heuristicScore += 0.2;
+    });
+    SUSPICIOUS_KEYWORDS.action.forEach(word => {
+        if (lowerText.includes(word)) heuristicScore += 0.1;
+    });
+    SUSPICIOUS_KEYWORDS.generic.forEach(word => {
+        if (lowerText.includes(word)) heuristicScore += 0.15;
+    });
+    heuristicScore = Math.min(heuristicScore, 0.9);
+
+    return { textScore, urlScore, heuristicScore };
 }
 
 // --- 4. MESSAGE HANDLING ---
@@ -156,7 +179,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function processScan(request, sender, sendResponse, remainingScans) {
     predict(request.text, request.url).then(result => {
         // Update Badge
-        const isPhish = result.textScore > 0.5 || result.urlScore > 0.5;
+        // Hybrid Scoring: Max of AI scores and Heuristic score
+        const finalScore = Math.max(result.textScore, result.urlScore, result.heuristicScore);
+        const isPhish = finalScore > PHISHING_THRESHOLD;
 
         if (isPhish) {
             // ALWAYS Alert on Phishing (Auto or Manual)

@@ -33,28 +33,37 @@ export function ManualAnalysis() {
   const [textVocab, setTextVocab] = useState<any>(null);
   const [urlVocab, setUrlVocab] = useState<any>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadModels() {
       try {
-        console.log("Loading models...");
+        console.log("Starting model load...");
+        setLoadError(null);
+
         const tm = await tf.loadLayersModel('/assets/text_model/model.json');
+        console.log("Text model loaded");
+
         const um = await tf.loadLayersModel('/assets/url_model/model.json');
+        console.log("URL model loaded");
 
         const tvReq = await fetch('/assets/word_index.json');
         const tv = await tvReq.json();
+        console.log("Text vocab loaded");
 
         const uvReq = await fetch('/assets/url_char_index.json');
         const uv = await uvReq.json();
+        console.log("URL vocab loaded");
 
         setTextModel(tm);
         setUrlModel(um);
         setTextVocab(tv);
         setUrlVocab(uv);
         setModelsLoaded(true);
-        console.log("Models loaded!");
+        console.log("All models ready!");
       } catch (e) {
         console.error("Failed to load models:", e);
+        setLoadError("Failed to load AI models. Please refresh.");
       }
     }
     loadModels();
@@ -84,6 +93,7 @@ export function ManualAnalysis() {
   };
 
   const handleAnalyze = async () => {
+    console.log("Analyze clicked. Models loaded:", modelsLoaded);
     if (!modelsLoaded) return;
     setAnalyzing(true);
     setShowResult(false);
@@ -97,7 +107,8 @@ export function ManualAnalysis() {
         const tensor = preprocessText(textContent);
         if (tensor) {
           const pred = textModel.predict(tensor) as tf.Tensor;
-          textScore = (await pred.data())[0];
+          const data = await pred.data();
+          textScore = data[0] as number;
           tensor.dispose();
         }
       }
@@ -107,7 +118,8 @@ export function ManualAnalysis() {
         const tensor = preprocessURL(urlContent);
         if (tensor) {
           const pred = urlModel.predict(tensor) as tf.Tensor;
-          urlScore = (await pred.data())[0];
+          const data = await pred.data();
+          urlScore = data[0] as number;
           tensor.dispose();
         }
       }
@@ -149,9 +161,9 @@ export function ManualAnalysis() {
             {t.manualAnalysis.description}
           </p>
         </div>
-        <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700">
+        <Badge variant="outline" className={`${loadError ? "bg-red-50 text-red-600 border-red-200" : "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700"}`}>
           <Sparkles className="w-3 h-3 mr-1" />
-          {modelsLoaded ? "AI Ready" : "Loading AI..."}
+          {loadError ? "AI Error" : (modelsLoaded ? "AI Ready" : "Loading AI...")}
         </Badge>
       </div>
 
