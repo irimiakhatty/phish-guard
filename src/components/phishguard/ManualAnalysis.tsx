@@ -102,6 +102,8 @@ export function ManualAnalysis() {
     try {
       let textScore = 0;
       let urlScore = 0;
+      let heuristicScore = 0;
+      let reasons: string[] = [];
 
       // Predict Text
       if (activeTab === "text" && textContent && textModel) {
