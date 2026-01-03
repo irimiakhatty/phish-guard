@@ -1,4 +1,5 @@
 "use client";
+// Last updated: 2026-01-03 16:10
 
 import { useState, useEffect } from "react";
 import { Send, Link as LinkIcon, FileText, Image as ImageIcon, Sparkles, AlertTriangle, CheckCircle } from "lucide-react";
