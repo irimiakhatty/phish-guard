@@ -128,6 +128,41 @@ export function ManualAnalysis() {
       }
 
 
+      // Heuristic Analysis
+      const lowerText = textContent.toLowerCase();
+      const lowerUrl = urlContent.toLowerCase();
+
+      // 1. Check for Suspicious Keywords
+      const SUSPICIOUS_KEYWORDS = {
+        urgency: ["immediately", "24 hours", "suspend", "lock", "unauthorized", "verify identity"],
+        action: ["click here", "login", "update account", "confirm"],
+        generic: ["dear customer", "valued member"]
+      };
+
+      let keywordCount = 0;
+      Object.values(SUSPICIOUS_KEYWORDS).flat().forEach(word => {
+        if (lowerText.includes(word)) {
+          keywordCount++;
+          reasons.push(`Suspicious keyword found: "${word}"`);
+        }
+      });
+
+      if (keywordCount > 0) {
+        heuristicScore += Math.min(keywordCount * 0.2, 0.6); // Cap at 0.6
+      }
+
+      // 2. Provider Mismatch (The "Microsoft on Gmail" check)
+      if (lowerText.includes("microsoft") && lowerText.includes("@gmail.com")) {
+        heuristicScore = 1.0; // Instant flag
+        reasons.push("High Risk: Microsoft security alert sent to a Gmail address (Provider Mismatch).");
+      }
+
+      // 3. URL Mismatch (Basic)
+      if (lowerUrl && (lowerUrl.includes("paypal") || lowerUrl.includes("microsoft")) && !lowerUrl.includes("paypal.com") && !lowerUrl.includes("microsoft.com")) {
+        heuristicScore += 0.8;
+        reasons.push("Suspicious URL: Brand name found in non-official domain.");
+      }
+
       // Hybrid Scoring Logic
       const finalScore = Math.max(textScore, urlScore, heuristicScore);
       const isPhishing = finalScore > 0.5;
