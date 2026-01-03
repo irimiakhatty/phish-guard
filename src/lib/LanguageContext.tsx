@@ -6,6 +6,7 @@ import { translations, type Language } from "./translations";
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
+  toggleLanguage: () => void;
   t: typeof translations.en;
 }
 
@@ -27,10 +28,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("phishguard-language", lang);
   };
 
+  const toggleLanguage = () => {
+    setLanguage(language === 'ro' ? 'en' : 'ro');
+  };
+
   const t = translations[language];
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   );

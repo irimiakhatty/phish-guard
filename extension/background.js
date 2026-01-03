@@ -1,4 +1,4 @@
-// importScripts('tf.min.js'); // Moved inside loadResources to prevent startup blocking
+importScripts('tf.min.js');
 
 // --- CONFIGURATION ---
 const TEXT_MAX_LEN = 150;
@@ -10,30 +10,13 @@ let textModel, urlModel;
 let textVocab, urlVocab;
 let isModelsLoaded = false;
 
-// --- 1. LOAD RESOURCES (ON DEMAND) ---
+// --- 1. LOAD RESOURCES ---
 async function loadResources() {
     if (isModelsLoaded) return;
 
     console.log("Background: Loading models...");
     try {
-        // Dynamically import TFJS only when needed
-        if (typeof tf === 'undefined') {
-            try {
-                console.log("Background: Importing tf.min.js...");
-                importScripts('tf.min.js');
-                console.log("Background: tf.min.js imported.");
-
-                // Force CPU backend for Service Worker environment
-                await tf.setBackend('cpu');
-                console.log("Background: Backend set to CPU.");
-            } catch (err) {
-                console.error("Failed to import/init tf.min.js", err);
-                return;
-            }
-        }
-
         // Load Models
-        console.log("Background: Loading model files...");
         textModel = await tf.loadLayersModel('assets/text_model/model.json');
         urlModel = await tf.loadLayersModel('assets/url_model/model.json');
 
@@ -53,72 +36,46 @@ async function loadResources() {
 
 // --- 2. PRE-PROCESSING FUNCTIONS ---
 function preprocessText(text) {
-    try {
-        const words = text.toLowerCase().replace(/[^\w\s]/gi, '').split(/\s+/);
-        const sequence = words.map(w => (textVocab && textVocab[w]) || (textVocab && textVocab[TEXT_OOV]) || 1);
+    const words = text.toLowerCase().replace(/[^\w\s]/gi, '').split(/\s+/);
+    const sequence = words.map(w => textVocab[w] || textVocab[TEXT_OOV] || 1);
 
-        const padded = new Array(TEXT_MAX_LEN).fill(0);
-        for (let i = 0; i < Math.min(sequence.length, TEXT_MAX_LEN); i++) {
-            padded[i] = sequence[i];
-        }
-        return tf.tensor2d([padded]);
-    } catch (e) {
-        console.error("Preprocess Text Error:", e);
-        return null;
+    const padded = new Array(TEXT_MAX_LEN).fill(0);
+    for (let i = 0; i < Math.min(sequence.length, TEXT_MAX_LEN); i++) {
+        padded[i] = sequence[i];
     }
+    return tf.tensor2d([padded]);
 }
 
 function preprocessURL(url) {
-    try {
-        const chars = url.split('');
-        const sequence = chars.map(c => (urlVocab && urlVocab[c]) || (urlVocab && urlVocab[URL_OOV]) || 1);
+    const chars = url.split('');
+    const sequence = chars.map(c => urlVocab[c] || urlVocab[URL_OOV] || 1);
 
-        const padded = new Array(URL_MAX_LEN).fill(0);
-        for (let i = 0; i < Math.min(sequence.length, URL_MAX_LEN); i++) {
-            padded[i] = sequence[i];
-        }
-        return tf.tensor2d([padded]);
-    } catch (e) {
-        console.error("Preprocess URL Error:", e);
-        return null;
+    const padded = new Array(URL_MAX_LEN).fill(0);
+    for (let i = 0; i < Math.min(sequence.length, URL_MAX_LEN); i++) {
+        padded[i] = sequence[i];
     }
+    return tf.tensor2d([padded]);
 }
 
 // --- 3. PREDICTION LOGIC ---
 async function predict(text, url) {
-    // Load resources ONLY when prediction is requested
-    if (!isModelsLoaded) {
-        await loadResources();
-    }
-
-    if (!isModelsLoaded) {
-        console.warn("Models not loaded, skipping prediction.");
-        return { textScore: 0, urlScore: 0 };
-    }
+    await loadResources();
 
     let textScore = 0;
     let urlScore = 0;
 
-    try {
-        if (text) {
-            const textTensor = preprocessText(text);
-            if (textTensor) {
-                const pred = textModel.predict(textTensor);
-                textScore = (await pred.data())[0];
-                textTensor.dispose();
-            }
-        }
+    if (text) {
+        const textTensor = preprocessText(text);
+        const pred = textModel.predict(textTensor);
+        textScore = (await pred.data())[0];
+        textTensor.dispose();
+    }
 
-        if (url) {
-            const urlTensor = preprocessURL(url);
-            if (urlTensor) {
-                const pred = urlModel.predict(urlTensor);
-                urlScore = (await pred.data())[0];
-                urlTensor.dispose();
-            }
-        }
-    } catch (e) {
-        console.error("Prediction Error:", e);
+    if (url) {
+        const urlTensor = preprocessURL(url);
+        const pred = urlModel.predict(urlTensor);
+        urlScore = (await pred.data())[0];
+        urlTensor.dispose();
     }
 
     return { textScore, urlScore };
@@ -127,7 +84,7 @@ async function predict(text, url) {
 // --- 4. MESSAGE HANDLING ---
 async function logIncident(data) {
     try {
-        // Retrieve API URL from storage (default to production)
+        // Retrieve API URL from storage (default to localhost:3000)
         const { apiUrl } = await chrome.storage.sync.get({ apiUrl: 'https://phish-guard-rho.vercel.app' });
 
         const response = await fetch(`${apiUrl}/api/incidents`, {
@@ -143,7 +100,7 @@ async function logIncident(data) {
                 source: 'extension'
             })
         });
-        // console.log("Incident logged:", await response.json());
+        console.log("Incident logged:", await response.json());
     } catch (e) {
         console.error("Failed to log incident:", e);
     }
@@ -158,6 +115,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
             // 1. Auth Check
             if (!authToken) {
+                // If auto-scan, just ignore. If manual, return error.
                 if (request.source === 'auto') {
                     sendResponse({ error: "SILENT_FAIL" });
                 } else {
@@ -169,7 +127,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // 2. Quota Check
             if (userPlan === 'free') {
                 if (scansRemaining <= 0) {
+                    // If auto-scan, silent fail (don't spam user)
                     if (request.source === 'auto') {
+                        console.log("Background: Auto-scan skipped (Limit Reached)");
                         sendResponse({ error: "SILENT_FAIL" });
                     } else {
                         sendResponse({ error: "LIMIT_REACHED" });
@@ -194,74 +154,63 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function processScan(request, sender, sendResponse, remainingScans) {
-    try {
-        const result = await predict(request.text, request.url);
-
+    predict(request.text, request.url).then(result => {
         // Update Badge
         const isPhish = result.textScore > 0.5 || result.urlScore > 0.5;
 
         if (isPhish) {
+            // ALWAYS Alert on Phishing (Auto or Manual)
             chrome.action.setBadgeText({ text: "WARN", tabId: sender.tab.id });
             chrome.action.setBadgeBackgroundColor({ color: "#FF0000", tabId: sender.tab.id });
 
+            // Log Incident to Backend
             logIncident({
                 url: request.url,
                 textScore: result.textScore,
                 urlScore: result.urlScore
             });
 
-            // NOTIFICATION LOGIC
-            // If proactive (auto) scan, show a system notification
-            if (request.source === 'auto') {
-                chrome.notifications.create({
-                    type: 'basic',
-                    iconUrl: 'assets/logo.png', // Use logo.png as icon
-                    title: 'PhishGuard Alert',
-                    message: `Suspicious email detected!\nConfidence: ${Math.max(result.textScore, result.urlScore).toFixed(2) * 100}%`,
-                    priority: 2,
-                    buttons: [{ title: "View Details" }]
-                });
-            } else {
-                // Manual scan (popup open) - maybe just the badge is enough, or a notification too?
-                // Let's keep notification for manual too, it's good feedback.
-                chrome.notifications.create({
-                    type: 'basic',
-                    iconUrl: 'assets/logo.png',
-                    title: 'PhishGuard Alert',
-                    message: `Phishing Detected!\nScore: ${Math.max(result.textScore, result.urlScore).toFixed(2)}`,
-                    priority: 2
-                });
-            }
+            // System Notification (Crucial for Auto-Scan)
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'assets/icon128.png',
+                title: '⚠️ Phishing Detected!',
+                message: `PhishGuard detected a threat in this email.\nText Score: ${result.textScore.toFixed(2)}`,
+                priority: 2
+            });
         } else {
+            // Safe
             chrome.action.setBadgeText({ text: "SAFE", tabId: sender.tab.id });
             chrome.action.setBadgeBackgroundColor({ color: "#00FF00", tabId: sender.tab.id });
         }
 
+        // Return result + updated quota
         sendResponse({
             ...result,
             scansRemaining: remainingScans
         });
-    } catch (e) {
-        console.error("Scan processing error:", e);
-        sendResponse({ error: "SCAN_FAILED" });
-    }
+    });
 }
 
 // --- 5. EXTERNAL MESSAGING (AUTH HANDOFF) ---
 chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
     if (request.action === "AUTH_HANDOFF") {
-        console.log("Background: Received Auth Token");
+        console.log("Background: Received Auth Token from Web App");
+
         const { token, user } = request;
 
+        // Save to Storage
         chrome.storage.sync.set({
             authToken: token,
             userPlan: user.plan || 'free',
-            scansRemaining: 10
+            scansRemaining: 10 // Reset or fetch from API in future
         }, () => {
             sendResponse({ success: true });
         });
-        return true;
+
+        return true; // Async response
     }
 });
 
-// NOTE: loadResources() is NOT called here. It is called inside predict().
+// Initialize on load
+loadResources();

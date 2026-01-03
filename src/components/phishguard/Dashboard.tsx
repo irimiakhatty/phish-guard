@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Shield,
   AlertTriangle,
@@ -18,41 +19,40 @@ import { useLanguage } from "~/lib/LanguageContext";
 
 export function Dashboard() {
   const { t, language } = useLanguage();
-  
-  const threats = [
-    {
-      type: "email",
-      title: t.threats.emailPhishing,
-      url: "noreply@paypal-secure.xyz",
-      time: language === 'ro' ? "Acum 5 min" : "5 min ago",
-      status: "blocked",
-      risk: "high",
-    },
-    {
-      type: "link",
-      title: t.threats.suspiciousLink,
-      url: "banc-raiffeisen-verificare.xyz",
-      time: language === 'ro' ? "Acum 23 min" : "23 min ago",
-      status: "blocked",
-      risk: "high",
-    },
-    {
-      type: "website",
-      title: t.threats.fakePage,
-      url: "amazon-promotion.tk",
-      time: language === 'ro' ? "Acum 1 oră" : "1 hour ago",
-      status: "blocked",
-      risk: "medium",
-    },
-    {
-      type: "email",
-      title: t.threats.suspiciousEmail,
-      url: "support@ing-ro.info",
-      time: language === 'ro' ? "Acum 2 ore" : "2 hours ago",
-      status: "blocked",
-      risk: "high",
-    },
-  ];
+
+  const [stats, setStats] = useState({
+    totalScans: 0,
+    threatsBlocked: 0,
+    detectionRate: "100",
+    timeSaved: "0"
+  });
+  const [threats, setThreats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const { getDashboardStats } = await import("~/server/actions");
+        const data = await getDashboardStats();
+        setStats(data.stats);
+
+        const mappedThreats = data.recentScans.map((scan: any) => ({
+          type: scan.contentType === "url" ? "link" : "email",
+          title: scan.isPhishing ? t.threats.suspiciousLink : "Safe Content", // Simplified title logic
+          url: scan.url || "No URL",
+          time: new Date(scan.createdAt).toLocaleTimeString(), // Simplified time
+          status: scan.isPhishing ? "blocked" : "scanned",
+          risk: scan.riskLevel,
+        }));
+        setThreats(mappedThreats);
+      } catch (error) {
+        console.error("Failed to fetch dashboard stats", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [t]);
 
   return (
     <div className="space-y-6">
@@ -65,11 +65,13 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-2">
-              <span className="text-gray-900 dark:text-white" style={{ fontSize: '2rem', lineHeight: '1' }}>127</span>
-              <div className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm mb-1">
-                <TrendingUp className="w-3 h-3" />
-                <span>+12%</span>
-              </div>
+              <span className="text-gray-900 dark:text-white" style={{ fontSize: '2rem', lineHeight: '1' }}>{stats.threatsBlocked}</span>
+              {stats.threatsBlocked > 0 && (
+                <div className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm mb-1">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>+100%</span>
+                </div>
+              )}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.dashboard.vsLastWeek}</p>
           </CardContent>
@@ -82,7 +84,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-2">
-              <span className="text-gray-900 dark:text-white" style={{ fontSize: '2rem', lineHeight: '1' }}>3,492</span>
+              <span className="text-gray-900 dark:text-white" style={{ fontSize: '2rem', lineHeight: '1' }}>{stats.totalScans}</span>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.dashboard.inLast30Days}</p>
           </CardContent>
@@ -95,9 +97,9 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-2">
-              <span className="text-gray-900 dark:text-white" style={{ fontSize: '2rem', lineHeight: '1' }}>99.8%</span>
+              <span className="text-gray-900 dark:text-white" style={{ fontSize: '2rem', lineHeight: '1' }}>{stats.detectionRate}%</span>
             </div>
-            <Progress value={99.8} className="mt-2 h-1" />
+            <Progress value={parseFloat(stats.detectionRate)} className="mt-2 h-1" />
           </CardContent>
         </Card>
 
@@ -108,7 +110,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-2">
-              <span className="text-gray-900 dark:text-white" style={{ fontSize: '2rem', lineHeight: '1' }}>8.4</span>
+              <span className="text-gray-900 dark:text-white" style={{ fontSize: '2rem', lineHeight: '1' }}>{stats.timeSaved}</span>
               <span className="text-gray-500 dark:text-gray-400 mb-1">{language === 'ro' ? 'ore' : 'hrs'}</span>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.dashboard.thisMonth}</p>
@@ -154,19 +156,17 @@ export function Dashboard() {
                   className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div
-                    className={`p-2 rounded-lg ${
-                      threat.type === "email"
-                        ? "bg-blue-50 dark:bg-blue-900/30"
-                        : threat.type === "link"
+                    className={`p-2 rounded-lg ${threat.type === "email"
+                      ? "bg-blue-50 dark:bg-blue-900/30"
+                      : threat.type === "link"
                         ? "bg-purple-50 dark:bg-purple-900/30"
                         : "bg-orange-50 dark:bg-orange-900/30"
-                    }`}
+                      }`}
                   >
                     {threat.type === "email" && (
                       <Mail
-                        className={`w-5 h-5 ${
-                          threat.type === "email" ? "text-blue-600 dark:text-blue-400" : ""
-                        }`}
+                        className={`w-5 h-5 ${threat.type === "email" ? "text-blue-600 dark:text-blue-400" : ""
+                          }`}
                       />
                     )}
                     {threat.type === "link" && (

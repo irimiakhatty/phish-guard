@@ -7,8 +7,6 @@ const loginBtn = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const loginError = document.getElementById('loginError');
 const subscriptionInfo = document.getElementById('subscriptionInfo');
-const dashboardBtn = document.getElementById('dashboardBtn');
-const scanBtn = document.getElementById('scanBtn');
 
 // --- AUTHENTICATION ---
 
@@ -23,65 +21,28 @@ async function checkAuth() {
 }
 
 function showLoginUI() {
-  if (loginSection) loginSection.classList.remove('hidden');
-  if (scanSection) scanSection.classList.add('hidden');
+  loginSection.classList.remove('hidden');
+  scanSection.classList.add('hidden');
 }
 
 function showScanUI(plan, scans) {
-  if (loginSection) loginSection.classList.add('hidden');
-  if (scanSection) scanSection.classList.remove('hidden');
+  loginSection.classList.add('hidden');
+  scanSection.classList.remove('hidden');
 
   // Update Info Box
-  if (subscriptionInfo) {
-    if (plan === 'free') {
-      subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: ${scans !== undefined ? scans : 10}`;
-
-      // If 0 scans remaining, show the upgrade UI immediately
-      if (scans === 0) {
-        const resultDiv = document.getElementById('result');
-        if (resultDiv) {
-          resultDiv.style.display = 'block';
-          resultDiv.innerHTML = `
-            <div class="limit-reached">
-              <div class="limit-title">Limit Reached</div>
-              <div class="limit-desc">You have used all your free scans.</div>
-              <button id="upgradeBtn" class="btn btn-primary" style="background-color: #16a34a; color: white;">Upgrade to Premium</button>
-            </div>
-          `;
-
-          // Attach listener
-          setTimeout(() => {
-            const upgradeBtn = document.getElementById('upgradeBtn');
-            if (upgradeBtn) {
-              upgradeBtn.addEventListener('click', () => {
-                chrome.storage.sync.get({ apiUrl: 'https://phish-guard-rho.vercel.app' }, (items) => {
-                  chrome.tabs.create({ url: `${items.apiUrl}/pricing` });
-                });
-              });
-            }
-          }, 100);
-
-          // Optionally disable scan button
-          if (scanBtn) {
-            scanBtn.disabled = true;
-            scanBtn.style.opacity = "0.5";
-            scanBtn.style.cursor = "not-allowed";
-          }
-        }
-      }
-    } else if (plan === 'paid') {
-      subscriptionInfo.innerText = `Plan: Premium | Unlimited Scans`;
-    } else {
-      subscriptionInfo.innerText = `Plan: Unknown`;
-    }
+  if (plan === 'free') {
+    subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: ${scans !== undefined ? scans : 10}`;
+  } else if (plan === 'paid') {
+    subscriptionInfo.innerText = `Plan: Premium | Unlimited Scans`;
+  } else {
+    subscriptionInfo.innerText = `Plan: Unknown`;
   }
 }
 
 async function login() {
-  // Open the Web App Auth Page with Extension ID
+  // Open the Web App Auth Page
   chrome.storage.sync.get({ apiUrl: 'https://phish-guard-rho.vercel.app' }, (items) => {
-    const extId = chrome.runtime.id;
-    chrome.tabs.create({ url: `${items.apiUrl}/ext-auth?ext_id=${extId}` });
+    chrome.tabs.create({ url: `${items.apiUrl}/ext-auth` });
   });
 }
 
@@ -106,12 +67,12 @@ async function scan() {
   const loader = document.getElementById('loader');
 
   if (!textInput && !urlInput) {
-    if (resultDiv) resultDiv.innerHTML = "<span class='warning'>Please enter text or a URL.</span>";
+    resultDiv.innerHTML = "<span style='color:orange'>Please enter text or a URL.</span>";
     return;
   }
 
-  if (loader) loader.style.display = "block";
-  if (resultDiv) resultDiv.innerHTML = "";
+  loader.style.display = "block";
+  resultDiv.innerHTML = "";
 
   // Send message to background script for analysis
   chrome.runtime.sendMessage({
@@ -119,11 +80,23 @@ async function scan() {
     text: textInput,
     url: urlInput
   }, (response) => {
-    if (loader) loader.style.display = "none";
+    loader.style.display = "none";
 
     if (chrome.runtime.lastError) {
-      if (resultDiv) resultDiv.innerText = "Error connecting to background service.";
+      resultDiv.innerText = "Error connecting to background service.";
       console.error(chrome.runtime.lastError);
+      return;
+    }
+
+    // Handle Subscription Errors
+    if (response.error === "LIMIT_REACHED") {
+      resultDiv.innerHTML = `
+        <div style="color: #e74c3c; font-weight: bold;">⚠️ Limit Reached</div>
+        <div style="font-size: 13px; margin-top: 5px;">You have used all your free scans.</div>
+        <button class="btn" style="background: #27ae60; margin-top: 10px;">Upgrade to Premium</button>
+      `;
+      // Update UI count to 0 just in case
+      subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: 0`;
       return;
     }
 
@@ -136,7 +109,7 @@ async function scan() {
     // Update UI with new remaining count if provided
     if (response.scansRemaining !== undefined) {
       chrome.storage.sync.get(['userPlan'], (items) => {
-        if (items.userPlan === 'free' && subscriptionInfo) {
+        if (items.userPlan === 'free') {
           subscriptionInfo.innerText = `Plan: Free Trial | Scans Remaining: ${response.scansRemaining}`;
         }
       });
@@ -145,65 +118,35 @@ async function scan() {
     const { textScore, urlScore } = response;
     console.log(`Text Score: ${textScore}, URL Score: ${urlScore}`);
 
-    if (resultDiv) {
-      if (textScore > 0.5 || urlScore > 0.5) {
-        resultDiv.innerHTML = "<span class='phish'>PHISHING DETECTED!</span>";
-        if (textScore > 0.5) resultDiv.innerHTML += "<br><small>Suspicious Text Content</small>";
-        if (urlScore > 0.5) resultDiv.innerHTML += "<br><small>Malicious URL Link</small>";
-      } else {
-        resultDiv.innerHTML = "<span class='safe'>LOOKS SAFE</span>";
-      }
-
-      // If scans reached 0, show the upgrade CTA immediately below the result
-      if (response.scansRemaining === 0) {
-        resultDiv.innerHTML += `
-          <div class="limit-reached">
-            <div class="limit-title">Limit Reached</div>
-            <div class="limit-desc">You have used all your free scans.</div>
-            <button id="upgradeBtn" class="btn btn-primary" style="background-color: #16a34a; color: white;">Upgrade to Premium</button>
-          </div>
-        `;
-
-        // Attach listener for the new button
-        setTimeout(() => {
-          const upgradeBtn = document.getElementById('upgradeBtn');
-          if (upgradeBtn) {
-            upgradeBtn.addEventListener('click', () => {
-              chrome.storage.sync.get({ apiUrl: 'https://phish-guard-rho.vercel.app' }, (items) => {
-                chrome.tabs.create({ url: `${items.apiUrl}/pricing` });
-              });
-            });
-          }
-        }, 100);
-      }
+    if (textScore > 0.5 || urlScore > 0.5) {
+      resultDiv.innerHTML = "<span class='phish'>⚠️ PHISHING DETECTED!</span>";
+      if (textScore > 0.5) resultDiv.innerHTML += "<br><small>Suspicious Text Content</small>";
+      if (urlScore > 0.5) resultDiv.innerHTML += "<br><small>Malicious URL Link</small>";
+    } else {
+      resultDiv.innerHTML = "<span class='safe'>✅ LOOKS SAFE</span>";
     }
   });
 }
 
 // --- EVENT LISTENERS ---
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Attach listeners
-  if (loginBtn) loginBtn.addEventListener('click', login);
-  if (logoutBtn) logoutBtn.addEventListener('click', logout);
-  if (scanBtn) scanBtn.addEventListener('click', scan);
+loginBtn.addEventListener('click', login);
+logoutBtn.addEventListener('click', logout);
+document.getElementById('scanBtn').addEventListener('click', scan);
 
-  if (dashboardBtn) {
-    dashboardBtn.addEventListener('click', () => {
-      chrome.storage.sync.get({ apiUrl: 'https://phish-guard-rho.vercel.app' }, (items) => {
-        chrome.tabs.create({ url: items.apiUrl });
-      });
-    });
-  }
+document.getElementById('dashboardBtn').addEventListener('click', () => {
+  chrome.storage.sync.get({ apiUrl: 'https://phish-guard-rho.vercel.app' }, (items) => {
+    chrome.tabs.create({ url: items.apiUrl });
+  });
+});
 
-  // Initial Auth Check
-  checkAuth();
+// Auto-fill URL
+window.addEventListener('DOMContentLoaded', () => {
+  checkAuth(); // Initial Auth Check
 
-  // Auto-fill URL
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs && tabs[0] && tabs[0].url) {
-      const urlInput = document.getElementById('urlText');
-      if (urlInput) urlInput.value = tabs[0].url;
+      document.getElementById('urlText').value = tabs[0].url;
     }
   });
 });
