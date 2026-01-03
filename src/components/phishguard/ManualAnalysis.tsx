@@ -94,7 +94,7 @@ export function ManualAnalysis() {
 
   const handleAnalyze = async () => {
     console.log("Analyze clicked. Models loaded:", modelsLoaded);
-    if (!modelsLoaded) return;
+    // if (!modelsLoaded) return; // Removed to allow heuristic fallback
     setAnalyzing(true);
     setShowResult(false);
 
@@ -196,18 +196,16 @@ export function ManualAnalysis() {
 
               <TabsContent value="text" className="space-y-4">
                 <Textarea
-                  placeholder={t.manualAnalysis.pasteMessage}
+                  placeholder={sampleText}
                   className="min-h-[200px] resize-none"
-                  defaultValue={sampleText}
                   onChange={(e) => setTextContent(e.target.value)}
                 />
               </TabsContent>
 
               <TabsContent value="url" className="space-y-4">
                 <Textarea
-                  placeholder={t.manualAnalysis.pasteUrl}
+                  placeholder="https://example.com/login"
                   className="min-h-[200px] resize-none font-mono"
-                  defaultValue="https://banc-raiffeisen-verificare.xyz/login?urgent=1&token=abc123"
                   onChange={(e) => setUrlContent(e.target.value)}
                 />
               </TabsContent>
