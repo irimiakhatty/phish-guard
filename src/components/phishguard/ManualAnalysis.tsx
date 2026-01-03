@@ -62,9 +62,9 @@ export function ManualAnalysis() {
         setUrlVocab(uv);
         setModelsLoaded(true);
         console.log("All models ready!");
-      } catch (e) {
+      } catch (e: any) {
         console.error("Failed to load models:", e);
-        setLoadError("Failed to load AI models. Please refresh.");
+        setLoadError(e.message || "Unknown error");
       }
     }
     loadModels();
@@ -169,9 +169,9 @@ export function ManualAnalysis() {
             {t.manualAnalysis.description}
           </p>
         </div>
-        <Badge variant="outline" className={`${loadError ? "bg-red-50 text-red-600 border-red-200" : "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700"}`}>
+        <Badge variant="outline" className={`${loadError ? "bg-red-50 text-red-600 border-red-200" : "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700"}`} title={loadError || ""}>
           <Sparkles className="w-3 h-3 mr-1" />
-          {loadError ? "AI Error" : (modelsLoaded ? "AI Ready" : "Loading AI...")}
+          {loadError ? `Error: ${loadError.substring(0, 20)}...` : (modelsLoaded ? "AI Ready" : "Loading AI...")}
         </Badge>
       </div>
 
