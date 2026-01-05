@@ -7,19 +7,22 @@ export interface HeuristicResult {
     score: number; // 0.0 to 1.0 (1.0 = Definite Phishing)
     reasons: string[];
     riskLevel: 'safe' | 'warning' | 'high' | 'critical';
+    isSafeDomain?: boolean; // New flag to override AI
 }
 
 const SUSPICIOUS_TLDS = ['.xyz', '.top', '.gq', '.tk', '.ml', '.cf', '.ga', '.cn', '.ru', '.work', '.click', '.loan'];
 const BRAND_DOMAINS: Record<string, string[]> = {
-    'paypal': ['paypal.com', 'paypal.me'],
-    'google': ['google.com', 'google.co.uk', 'gmail.com', 'accounts.google.com'],
-    'microsoft': ['microsoft.com', 'live.com', 'office.com', 'outlook.com', 'azure.com'],
-    'apple': ['apple.com', 'icloud.com'],
-    'facebook': ['facebook.com', 'fb.com', 'messenger.com'],
-    'instagram': ['instagram.com'],
-    'netflix': ['netflix.com'],
-    'amazon': ['amazon.com', 'amazon.co.uk', 'amazon.de'],
-    'dhl': ['dhl.com'],
+    'paypal': ['paypal.com', 'paypal.me', 'www.paypal.com'],
+    'google': ['google.com', 'google.co.uk', 'gmail.com', 'accounts.google.com', 'www.google.com'],
+    'microsoft': ['microsoft.com', 'live.com', 'office.com', 'outlook.com', 'azure.com', 'www.microsoft.com'],
+    'apple': ['apple.com', 'icloud.com', 'www.apple.com'],
+    'facebook': ['facebook.com', 'fb.com', 'messenger.com', 'www.facebook.com'],
+    'instagram': ['instagram.com', 'www.instagram.com'],
+    'netflix': ['netflix.com', 'www.netflix.com'],
+    'amazon': ['amazon.com', 'amazon.co.uk', 'amazon.de', 'www.amazon.com'],
+    'dhl': ['dhl.com', 'www.dhl.com'],
+    'yahoo': ['yahoo.com', 'mail.yahoo.com'],
+    'linkedin': ['linkedin.com', 'www.linkedin.com']
 };
 
 const URGENCY_KEYWORDS = [
@@ -33,6 +36,7 @@ export function analyzeHeuristics(text: string, url: string): HeuristicResult {
     const reasons: string[] = [];
     const lowerText = text.toLowerCase();
     const lowerUrl = url.toLowerCase().trim();
+    let isSafeDomain = false;
 
     // --- URL ANALYSIS ---
     if (lowerUrl) {
@@ -43,13 +47,38 @@ export function analyzeHeuristics(text: string, url: string): HeuristicResult {
             const urlObj = new URL(urlToParse);
             const domain = urlObj.hostname;
 
-            // 1. IP Address Detection
-            // Matches explicit IP v4 addresses (e.g. 192.168.1.1)
-            // We check the domain part specifically
-            const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-            if (ipRegex.test(domain)) {
-                score += 1.0;
-                reasons.push("Critical: URL uses an IP address instead of a domain name.");
+            // 0. WHITESLIST CHECK (Safety Net)
+            // Check if it matches any official domain exactly or is a subdomain
+            for (const [_, officialDomains] of Object.entries(BRAND_DOMAINS)) {
+                if (officialDomains.some(od => domain === od || domain.endsWith(`.${od}`))) {
+                    isSafeDomain = true;
+                    // If it's a known safe domain, we can skip other URL checks or force score low
+                    // But we continue to check for hacking attempts (like XSS in text) just in case,
+                    // mostly we want to prevent Brand Impersonation flags.
+                }
+            }
+
+            if (isSafeDomain) {
+                // If explicitly whitelisted, we don't flag for IP/TLD/etc potentially, 
+                // OR we just ensure the score doesn't get high from brand detection.
+                // For now, let's keep checks but use the flag to cap score later.
+            } else {
+                // 1. IP Address Detection
+                const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+                if (ipRegex.test(domain)) {
+                    score += 1.0;
+                    reasons.push("Critical: URL uses an IP address instead of a domain name.");
+                }
+
+                // 4. Suspicious TLDs
+                const tldParts = domain.split('.');
+                if (tldParts.length > 1) {
+                    const tld = tldParts.pop();
+                    if (tld && SUSPICIOUS_TLDS.includes(`.${tld}`)) {
+                        score += 0.3;
+                        reasons.push(`Suspicious TLD detected: .${tld}`);
+                    }
+                }
             }
 
             // 2. Credential Embedding / Obfuscation
@@ -59,38 +88,23 @@ export function analyzeHeuristics(text: string, url: string): HeuristicResult {
             }
 
             // 3. Homograph / Mixed Script Attacks
-            // Check for non-ascii in domain
             if (/[^\u0000-\u007F]+/.test(domain)) {
                 score += 0.2;
                 reasons.push("Warning: Domain contains special/non-Latin characters.");
             }
 
-            // 4. Suspicious TLDs
-            const tldParts = domain.split('.');
-            if (tldParts.length > 1) {
-                const tld = tldParts.pop(); // safe because length > 1
-                if (tld && SUSPICIOUS_TLDS.includes(`.${tld}`)) {
-                    score += 0.3;
-                    reasons.push(`Suspicious TLD detected: .${tld}`);
-                }
-            }
-
             // 5. Brand Impersonation (Domain Spoofing)
-            Object.entries(BRAND_DOMAINS).forEach(([brand, officialDomains]) => {
-                if (lowerUrl.includes(brand) || lowerText.includes(brand)) {
-                    // It mentions the brand. Is it an official domain?
-                    // Check if the current domain ENDS with any of the official domains
-                    // e.g. domain = "paypal.com.evil.com" -> endsWith("paypal.com") is False.
-                    // domain = "secure.paypal.com" -> endsWith("paypal.com") is True.
-                    const isOfficial = officialDomains.some(od => domain === od || domain.endsWith(`.${od}`));
-
-                    if (!isOfficial) {
-                        // Only flag if it's not official BUT mentions the brand
-                        score += 0.8;
-                        reasons.push(`High Risk: URL impersonates ${brand.toUpperCase()} but is not an official domain.`);
+            if (!isSafeDomain) {
+                Object.entries(BRAND_DOMAINS).forEach(([brand, officialDomains]) => {
+                    if (lowerUrl.includes(brand) || lowerText.includes(brand)) {
+                        const isOfficial = officialDomains.some(od => domain === od || domain.endsWith(`.${od}`));
+                        if (!isOfficial) {
+                            score += 0.8;
+                            reasons.push(`High Risk: URL impersonates ${brand.toUpperCase()} but is not an official domain.`);
+                        }
                     }
-                }
-            });
+                });
+            }
 
         } catch (e) {
             // Invalid URL format
@@ -121,6 +135,8 @@ export function analyzeHeuristics(text: string, url: string): HeuristicResult {
         }
 
         // 3. Provider Mismatch (Microsoft on Gmail, etc.)
+        // Only run this if NOT a safe domain (prevents flagging real emails from these providers if we had headers, 
+        // but here we just have text/url. Safest to run it.)
         if ((lowerText.includes("microsoft") || lowerText.includes("office 365")) &&
             (lowerText.includes("@gmail.com") || lowerText.includes("@yahoo.com"))) {
             score += 0.7;
@@ -143,5 +159,5 @@ export function analyzeHeuristics(text: string, url: string): HeuristicResult {
     else if (score > 0.5) riskLevel = 'high';
     else if (score > 0.2) riskLevel = 'warning';
 
-    return { score, reasons, riskLevel };
+    return { score, reasons, riskLevel, isSafeDomain };
 }

@@ -158,8 +158,17 @@ export function ManualAnalysis() {
       reasons.push(...heuristicResult.reasons);
 
       // Hybrid Scoring Logic
-      const finalScore = Math.max(textScore, urlScore, heuristicScore);
-      const isPhishing = finalScore > 0.5;
+      let finalScore = Math.max(textScore, urlScore, heuristicScore);
+      let isPhishing = finalScore > 0.5;
+
+      // SAFETY OVERRIDE: If Heuristics says it's explicitly safe (Whitelisted), we trust it over AI
+      if (heuristicResult.isSafeDomain) {
+        console.log("Safe Domain Override triggered");
+        finalScore = 0;
+        isPhishing = false;
+        reasons = ["Verified Official Domain (Safe List)"];
+      }
+
       const confidence = finalScore;
 
       // Map Heuristic Risk Level for UI if needed (logic already handles score > 0.5)
@@ -190,6 +199,8 @@ export function ManualAnalysis() {
   const sampleText = language === 'ro'
     ? "Bună ziua,\n\nContul dumneavoastră PayPal a fost suspendat temporar din cauza activității suspecte. Pentru a-l reactiva, vă rugăm să vă conectați imediat la:\n\nhttps://secure-paypal-verify.xyz/login\n\nAveți la dispoziție 24 de ore pentru a evita închiderea permanentă a contului.\n\nEchipa PayPal"
     : "Hello,\n\nYour PayPal account has been temporarily suspended due to suspicious activity. To reactivate it, please log in immediately at:\n\nhttps://secure-paypal-verify.xyz/login\n\nYou have 24 hours to avoid permanent account closure.\n\nPayPal Team";
+
+  const isInputEmpty = activeTab === "text" ? !textContent.trim() : !urlContent.trim();
 
   return (
     <div className="space-y-6">
@@ -230,19 +241,29 @@ export function ManualAnalysis() {
               </TabsList>
 
               <TabsContent value="text" className="space-y-4">
-                <Textarea
-                  placeholder={sampleText}
-                  className="min-h-[200px] resize-none"
-                  onChange={(e) => setTextContent(e.target.value)}
-                />
+                <div className="relative">
+                  <p className="text-xs text-gray-400 mb-1 italic">
+                    {language === 'ro' ? "(Exemplu de text phishing mai jos - nu este analizat automat)" : "(Example phishing text below - not automatically analyzed)"}
+                  </p>
+                  <Textarea
+                    placeholder={sampleText}
+                    className="min-h-[200px] resize-none"
+                    onChange={(e) => setTextContent(e.target.value)}
+                  />
+                </div>
               </TabsContent>
 
               <TabsContent value="url" className="space-y-4">
-                <Textarea
-                  placeholder="https://example.com/login"
-                  className="min-h-[200px] resize-none font-mono"
-                  onChange={(e) => setUrlContent(e.target.value)}
-                />
+                <div className="relative">
+                  <p className="text-xs text-gray-400 mb-1 italic">
+                    {language === 'ro' ? "(Exemplu URL)" : "(Example URL)"}
+                  </p>
+                  <Textarea
+                    placeholder="https://example.com/login"
+                    className="min-h-[200px] resize-none font-mono"
+                    onChange={(e) => setUrlContent(e.target.value)}
+                  />
+                </div>
               </TabsContent>
 
               <TabsContent value="image" className="space-y-4">
@@ -255,9 +276,9 @@ export function ManualAnalysis() {
             </Tabs>
 
             <Button
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleAnalyze}
-              disabled={analyzing}
+              disabled={analyzing || isInputEmpty}
             >
               {analyzing ? (
                 <>
@@ -271,6 +292,7 @@ export function ManualAnalysis() {
                 </>
               )}
             </Button>
+
 
             <p className="text-xs text-gray-500 dark:text-gray-500 text-center">
               {t.manualAnalysis.freeAnalysis} • v1.2
