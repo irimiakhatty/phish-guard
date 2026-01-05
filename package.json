@@ -5,11 +5,12 @@
   "type": "module",
   "packageManager": "pnpm@9.15.4",
   "scripts": {
-    "build": "next build",
+    "build": "prisma generate && next build",
     "db:push": "drizzle-kit push:pg",
     "db:studio": "drizzle-kit studio",
     "dev": "next dev",
     "lint": "next lint",
+    "postinstall": "prisma generate",
     "start": "next start"
   },
   "dependencies": {
