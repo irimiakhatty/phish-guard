@@ -5,7 +5,20 @@ import { prisma as db } from "~/server/db/prisma";
 
 export async function getDashboardStats() {
     const { userId } = auth();
-    if (!userId) throw new Error("Unauthorized");
+
+    // Return empty stats if no user (don't crash)
+    if (!userId) {
+        console.warn("getDashboardStats: No userId found");
+        return {
+            recentScans: [],
+            stats: {
+                totalScans: 0,
+                threatsBlocked: 0,
+                detectionRate: "0",
+                timeSaved: "0"
+            }
+        };
+    }
 
     try {
         // Fetch recent scans
@@ -64,7 +77,10 @@ export async function scanContent(data: {
     confidence: number;
 }) {
     const { userId } = auth();
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) {
+        console.warn("scanContent: Unauthorized");
+        return { success: false, error: "Unauthorized" };
+    }
 
     const scan = await db.scan.create({
         data: {
