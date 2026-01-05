@@ -7,39 +7,52 @@ export async function getDashboardStats() {
     const { userId } = auth();
     if (!userId) throw new Error("Unauthorized");
 
-    // Fetch recent scans
-    const recentScans = await db.scan.findMany({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-    });
+    try {
+        // Fetch recent scans
+        const recentScans = await db.scan.findMany({
+            where: { userId },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+        });
 
-    // Calculate stats
-    const totalScans = await db.scan.count({
-        where: { userId },
-    });
+        // Calculate stats
+        const totalScans = await db.scan.count({
+            where: { userId },
+        });
 
-    const threatsBlocked = await db.scan.count({
-        where: {
-            userId,
-            isPhishing: true
-        },
-    });
+        const threatsBlocked = await db.scan.count({
+            where: {
+                userId,
+                isPhishing: true
+            },
+        });
 
-    // Calculate detection rate (mock logic if 0 scans)
-    const detectionRate = totalScans > 0
-        ? ((threatsBlocked / totalScans) * 100).toFixed(1)
-        : "0";
+        // Calculate detection rate (mock logic if 0 scans)
+        const detectionRate = totalScans > 0
+            ? ((threatsBlocked / totalScans) * 100).toFixed(1)
+            : "0";
 
-    return {
-        recentScans,
-        stats: {
-            totalScans,
-            threatsBlocked,
-            detectionRate,
-            timeSaved: (threatsBlocked * 5 / 60).toFixed(1) // Mock calculation: 5 mins saved per threat
-        }
-    };
+        return {
+            recentScans,
+            stats: {
+                totalScans,
+                threatsBlocked,
+                detectionRate,
+                timeSaved: (threatsBlocked * 5 / 60).toFixed(1) // Mock calculation: 5 mins saved per threat
+            }
+        };
+    } catch (error) {
+        console.error("Dashboard Stats Error (returning default):", error);
+        return {
+            recentScans: [],
+            stats: {
+                totalScans: 0,
+                threatsBlocked: 0,
+                detectionRate: "0",
+                timeSaved: "0"
+            }
+        };
+    }
 }
 
 export async function scanContent(data: {
