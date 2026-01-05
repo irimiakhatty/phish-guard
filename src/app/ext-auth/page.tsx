@@ -1,10 +1,10 @@
 "use client";
 
 import { useAuth, useUser, RedirectToSignIn } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function ExtensionAuthPage() {
+function ExtensionAuthContent() {
     const { isLoaded, userId, getToken } = useAuth();
     const { user } = useUser();
     const [status, setStatus] = useState("Authenticating...");
@@ -92,5 +92,19 @@ export default function ExtensionAuthPage() {
                 <p className="mt-4 text-xs text-gray-400">v1.3-debug</p>
             </div>
         </div>
+    );
+}
+
+export default function ExtensionAuthPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex min-h-screen flex-col items-center justify-center p-4">
+                <div className="rounded-lg border p-8 shadow-lg">
+                    <p className="text-lg">Loading Auth...</p>
+                </div>
+            </div>
+        }>
+            <ExtensionAuthContent />
+        </Suspense>
     );
 }
