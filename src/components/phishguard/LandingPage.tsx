@@ -1,15 +1,16 @@
 "use client";
 
 import { Shield, Zap, Brain, Lock, CheckCircle, Users, Building, Heart, ArrowRight, Star, Sparkles, Globe, Moon, Sun, Chrome, Mail, Eye } from "lucide-react";
-import { Button, buttonVariants } from "~/components/ui/button";
+import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import { useLanguage } from "~/lib/LanguageContext";
 import { useTheme } from "~/lib/ThemeContext";
-import { SignInButton, SignUpButton } from "@clerk/nextjs";
+import { useClerk } from "@clerk/nextjs";
 
 export function LandingPage() {
     const { t, language, toggleLanguage } = useLanguage();
     const { theme, toggleTheme } = useTheme();
+    const { openSignIn, openSignUp } = useClerk();
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
@@ -37,14 +38,16 @@ export function LandingPage() {
                 </button>
 
                 {/* Sign In Button */}
-                <SignInButton mode="modal">
-                    <Button variant="outline" className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-2 border-gray-200 dark:border-gray-700 rounded-full px-6 py-2.5 hover:shadow-xl hover:scale-105 transition-all shadow-lg">
-                        {language === 'ro' ? 'Autentificare' : 'Sign In'}
-                    </Button>
-                </SignInButton>
+                <Button
+                    variant="outline"
+                    className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-2 border-gray-200 dark:border-gray-700 rounded-full px-6 py-2.5 hover:shadow-xl hover:scale-105 transition-all shadow-lg"
+                    onClick={() => openSignIn()}
+                >
+                    {language === 'ro' ? 'Autentificare' : 'Sign In'}
+                </Button>
             </div>
 
-            {/* Hero Section - Full Screen */}
+            {/* Hero Section */}
             <section className="min-h-screen relative overflow-hidden flex items-center justify-center px-6 py-20">
                 {/* Animated Background Elements */}
                 <div className="absolute inset-0 overflow-hidden">
@@ -83,14 +86,14 @@ export function LandingPage() {
 
                             {/* CTA Buttons */}
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                                <SignUpButton mode="modal">
-                                    <span
-                                        className={buttonVariants({ size: "lg", className: "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-2xl shadow-blue-500/40 text-xl px-10 py-8 group cursor-pointer" })}
-                                    >
-                                        {t.landing.getStartedFree}
-                                        <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
-                                    </span>
-                                </SignUpButton>
+                                <Button
+                                    size="lg"
+                                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-2xl shadow-blue-500/40 text-xl px-10 py-8 group cursor-pointer"
+                                    onClick={() => openSignUp()}
+                                >
+                                    {t.landing.getStartedFree}
+                                    <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
+                                </Button>
                             </div>
 
                             {/* Trust Indicators */}
@@ -329,15 +332,14 @@ export function LandingPage() {
                     </div>
 
                     <div className="text-center mt-16">
-                        <SignUpButton mode="modal">
-                            <Button
-                                size="lg"
-                                className="bg-white text-blue-600 hover:bg-blue-50 shadow-2xl text-xl px-12 py-8 group"
-                            >
-                                {language === 'ro' ? 'Începe trial-ul gratuit de 7 zile' : 'Start 7-day free trial'}
-                                <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
-                            </Button>
-                        </SignUpButton>
+                        <Button
+                            size="lg"
+                            className="bg-white text-blue-600 hover:bg-blue-50 shadow-2xl text-xl px-12 py-8 group"
+                            onClick={() => openSignUp()}
+                        >
+                            {language === 'ro' ? 'Începe trial-ul gratuit de 7 zile' : 'Start 7-day free trial'}
+                            <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
+                        </Button>
                         <p className="text-blue-100 mt-6 text-lg">
                             {t.pricing.noCardRequired}
                         </p>
@@ -489,15 +491,14 @@ export function LandingPage() {
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-6 justify-center pt-8">
-                            <SignUpButton mode="modal">
-                                <Button
-                                    size="lg"
-                                    className="bg-white text-blue-600 hover:bg-blue-50 shadow-2xl text-2xl px-14 py-10 group"
-                                >
-                                    {t.landing.ctaButton}
-                                    <ArrowRight className="w-7 h-7 ml-3 group-hover:translate-x-1 transition-transform" />
-                                </Button>
-                            </SignUpButton>
+                            <Button
+                                size="lg"
+                                className="bg-white text-blue-600 hover:bg-blue-50 shadow-2xl text-2xl px-14 py-10 group"
+                                onClick={() => openSignUp()}
+                            >
+                                {t.landing.ctaButton}
+                                <ArrowRight className="w-7 h-7 ml-3 group-hover:translate-x-1 transition-transform" />
+                            </Button>
                         </div>
 
                         <div className="flex flex-col items-center gap-4 pt-6">

@@ -254,9 +254,9 @@ export function ManualAnalysis() {
             {t.manualAnalysis.description}
           </p>
         </div>
-        <Badge variant="outline" className={`${loadError ? "bg-red-50 text-red-600 border-red-200" : (!textModel && modelsLoaded ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700")}`} title={loadError || (modelsLoaded ? [!textModel && "Text Model", !urlModel && "URL Model"].filter(Boolean).map(m => `Missing: ${m}`).join(", ") : "")}>
+        <Badge variant="outline" className={`${loadError ? "bg-red-50 text-red-600 border-red-200" : (modelsLoaded ? "bg-green-50 text-green-700 border-green-200" : "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700")}`} title={loadError || ""}>
           <Sparkles className="w-3 h-3 mr-1" />
-          {loadError ? `Error: ${loadError.substring(0, 20)}...` : (modelsLoaded ? (textModel && urlModel ? "AI Ready" : "Partial AI") : "Loading AI...")}
+          {loadError ? `Error: ${loadError.substring(0, 20)}...` : (modelsLoaded ? (language === 'ro' ? "Gratuit" : "Free") : "Loading AI...")}
         </Badge>
       </div>
 
