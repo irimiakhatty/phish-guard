@@ -2,7 +2,7 @@
 // Last updated: 2026-01-03 17:00 (v1.2)
 
 import { useState, useEffect } from "react";
-import { Send, Link as LinkIcon, FileText, Image as ImageIcon, Sparkles, AlertTriangle, CheckCircle } from "lucide-react";
+import { Send, Link as LinkIcon, FileText, Image as ImageIcon, Sparkles, AlertTriangle, CheckCircle, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -30,10 +30,16 @@ export function ManualAnalysis() {
   const [activeTab, setActiveTab] = useState("text");
   const [textContent, setTextContent] = useState("");
   const [urlContent, setUrlContent] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Create preview
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
 
     setProcessingImage(true);
     setLoadError(null);
@@ -53,9 +59,17 @@ export function ManualAnalysis() {
       setLoadError("Failed to process image.");
     } finally {
       setProcessingImage(false);
-      // Reset input
+      // Reset input value to allow re-uploading same file if cleared
       e.target.value = '';
     }
+  };
+
+  const handleClearImage = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering upload click if bubbled
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(null);
+    setTextContent(""); // Optional: clear text too? Yes, likely desired.
+    setLoadError(null);
   };
 
   // AI Models
@@ -287,8 +301,8 @@ export function ManualAnalysis() {
 
               <TabsContent value="image" className="space-y-4">
                 <div
-                  className={`border-2 border-dashed ${processingImage ? "border-blue-400 bg-blue-50" : "border-gray-300 dark:border-gray-600"} rounded-lg p-12 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer relative`}
-                  onClick={() => document.getElementById('image-upload')?.click()}
+                  className={`border-2 border-dashed ${processingImage ? "border-blue-400 bg-blue-50" : "border-gray-300 dark:border-gray-600"} rounded-lg p-4 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer relative min-h-[200px] flex flex-col items-center justify-center`}
+                  onClick={() => !imagePreview && document.getElementById('image-upload')?.click()}
                 >
                   <input
                     type="file"
@@ -302,6 +316,21 @@ export function ManualAnalysis() {
                     <div className="flex flex-col items-center">
                       <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
                       <p className="text-blue-600 font-medium">Extracting Text (OCR)...</p>
+                    </div>
+                  ) : imagePreview ? (
+                    <div className="relative w-full h-full flex items-center justify-center group">
+                      <img
+                        src={imagePreview}
+                        alt="Uploaded preview"
+                        className="max-h-[300px] max-w-full object-contain rounded-md shadow-sm"
+                      />
+                      <button
+                        onClick={handleClearImage}
+                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full shadow-md transition-colors z-10"
+                        title="Remove image"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   ) : (
                     <>
