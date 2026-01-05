@@ -6,6 +6,7 @@ import { Send, Link as LinkIcon, FileText, Image as ImageIcon, Sparkles, AlertTr
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { analyzeHeuristics } from "~/lib/phishingHeuristics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Badge } from "~/components/ui/badge";
 import { ThreatAlert } from "./ThreatAlert";
@@ -38,33 +39,56 @@ export function ManualAnalysis() {
 
   useEffect(() => {
     async function loadModels() {
+      console.log("Starting model load...");
+      setLoadError(null);
+      let loadedCount = 0;
+
+      // 1. Load Vocabularies (Critical)
       try {
-        console.log("Starting model load...");
-        setLoadError(null);
-
-        const tm = await tf.loadLayersModel('/assets/text_model/model.json');
-        console.log("Text model loaded");
-
-        const um = await tf.loadLayersModel('/assets/url_model/model.json');
-        console.log("URL model loaded");
-
-        const tvReq = await fetch('/assets/word_index.json');
+        // Updated path for Text vocab (now inside text_model folder)
+        const tvReq = await fetch('/assets/text_model/text_word_index.json');
         const tv = await tvReq.json();
+        setTextVocab(tv);
         console.log("Text vocab loaded");
 
-        const uvReq = await fetch('/assets/url_char_index.json');
+        // Updated path for URL vocab (now inside url_model folder)
+        const uvReq = await fetch('/assets/url_model/url_char_index.json');
         const uv = await uvReq.json();
-        console.log("URL vocab loaded");
-
-        setTextModel(tm);
-        setUrlModel(um);
-        setTextVocab(tv);
         setUrlVocab(uv);
-        setModelsLoaded(true);
-        console.log("All models ready!");
+        console.log("URL vocab loaded");
       } catch (e: any) {
-        console.error("Failed to load models:", e);
-        setLoadError(e.message || "Unknown error");
+        console.error("Failed to load vocabularies:", e);
+        setLoadError("Failed to load assets: " + (e.message || "Unknown error"));
+        return; // Critical failure
+      }
+
+      // 2. Load Text Model
+      try {
+        // Pointing to fixed model.json with cache buster
+        const tm = await tf.loadLayersModel('/assets/text_model/model_fixed.json?v=final_fix');
+        setTextModel(tm);
+        console.log("Text model loaded");
+        loadedCount++;
+      } catch (e) {
+        console.warn("Text model missing or corrupt:", e);
+      }
+
+      // 3. Load URL Model
+      try {
+        // Pointing to fixed model.json with cache buster
+        const um = await tf.loadLayersModel('/assets/url_model/model_fixed.json?v=final_fix');
+        setUrlModel(um);
+        console.log("URL model loaded");
+        loadedCount++;
+      } catch (e) {
+        console.warn("URL model missing or corrupt:", e);
+      }
+
+      setModelsLoaded(true);
+      if (loadedCount < 2) {
+        console.log("Warning: Not all AI models loaded successfully.");
+      } else {
+        console.log("All models ready!");
       }
     }
     loadModels();
@@ -128,46 +152,18 @@ export function ManualAnalysis() {
       }
 
 
-      // Heuristic Analysis
-      const lowerText = textContent.toLowerCase();
-      const lowerUrl = urlContent.toLowerCase();
-
-      // 1. Check for Suspicious Keywords
-      const SUSPICIOUS_KEYWORDS = {
-        urgency: ["immediately", "24 hours", "suspend", "lock", "unauthorized", "verify identity"],
-        action: ["click here", "login", "update account", "confirm"],
-        generic: ["dear customer", "valued member"]
-      };
-
-      let keywordCount = 0;
-      Object.values(SUSPICIOUS_KEYWORDS).flat().forEach(word => {
-        if (lowerText.includes(word)) {
-          keywordCount++;
-          reasons.push(`Suspicious keyword found: "${word}"`);
-        }
-      });
-
-      if (keywordCount > 0) {
-        heuristicScore += Math.min(keywordCount * 0.2, 0.6); // Cap at 0.6
-      }
-
-      // 2. Provider Mismatch (The "Microsoft on Gmail" check)
-      if (lowerText.includes("microsoft") && lowerText.includes("@gmail.com")) {
-        heuristicScore = 1.0; // Instant flag
-        reasons.push("High Risk: Microsoft security alert sent to a Gmail address (Provider Mismatch).");
-      }
-
-      // 3. URL Mismatch (Basic)
-      if (lowerUrl && (lowerUrl.includes("paypal") || lowerUrl.includes("microsoft")) && !lowerUrl.includes("paypal.com") && !lowerUrl.includes("microsoft.com")) {
-        heuristicScore += 0.8;
-        reasons.push("Suspicious URL: Brand name found in non-official domain.");
-      }
+      // Heuristic Analysis (Hybrid approach)
+      const heuristicResult = analyzeHeuristics(textContent, urlContent);
+      heuristicScore = heuristicResult.score;
+      reasons.push(...heuristicResult.reasons);
 
       // Hybrid Scoring Logic
       const finalScore = Math.max(textScore, urlScore, heuristicScore);
       const isPhishing = finalScore > 0.5;
       const confidence = finalScore;
-      const riskLevel = isPhishing ? "high" : "safe";
+
+      // Map Heuristic Risk Level for UI if needed (logic already handles score > 0.5)
+      const riskLevel = heuristicResult.riskLevel === 'critical' ? 'high' : (isPhishing ? "high" : "safe");
 
       // 1. Show Result IMMEDIATELY
       setResult({ isPhishing, textScore, urlScore, heuristicScore, reasons });
@@ -204,9 +200,9 @@ export function ManualAnalysis() {
             {t.manualAnalysis.description}
           </p>
         </div>
-        <Badge variant="outline" className={`${loadError ? "bg-red-50 text-red-600 border-red-200" : "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700"}`} title={loadError || ""}>
+        <Badge variant="outline" className={`${loadError ? "bg-red-50 text-red-600 border-red-200" : (!textModel && modelsLoaded ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700")}`} title={loadError || (modelsLoaded ? [!textModel && "Text Model", !urlModel && "URL Model"].filter(Boolean).map(m => `Missing: ${m}`).join(", ") : "")}>
           <Sparkles className="w-3 h-3 mr-1" />
-          {loadError ? `Error: ${loadError.substring(0, 20)}...` : (modelsLoaded ? "AI Ready" : "Loading AI...")}
+          {loadError ? `Error: ${loadError.substring(0, 20)}...` : (modelsLoaded ? (textModel && urlModel ? "AI Ready" : "Partial AI") : "Loading AI...")}
         </Badge>
       </div>
 

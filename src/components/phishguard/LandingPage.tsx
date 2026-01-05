@@ -1,7 +1,7 @@
 "use client";
 
 import { Shield, Zap, Brain, Lock, CheckCircle, Users, Building, Heart, ArrowRight, Star, Sparkles, Globe, Moon, Sun, Chrome, Mail, Eye } from "lucide-react";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import { useLanguage } from "~/lib/LanguageContext";
 import { useTheme } from "~/lib/ThemeContext";
@@ -84,13 +84,12 @@ export function LandingPage() {
                             {/* CTA Buttons */}
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                                 <SignUpButton mode="modal">
-                                    <Button
-                                        size="lg"
-                                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-2xl shadow-blue-500/40 text-xl px-10 py-8 group"
+                                    <span
+                                        className={buttonVariants({ size: "lg", className: "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-2xl shadow-blue-500/40 text-xl px-10 py-8 group cursor-pointer" })}
                                     >
                                         {t.landing.getStartedFree}
                                         <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
-                                    </Button>
+                                    </span>
                                 </SignUpButton>
                             </div>
 

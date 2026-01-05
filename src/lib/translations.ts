@@ -186,8 +186,8 @@ export const translations = {
       phishingRecommendations: [
         "NU accesați linkul din mesaj",
         "NU introduceți date personale",
-        "Verificați contul PayPal direct de pe site-ul oficial",
-        "Raportați mesajul la phishing@paypal.com",
+        "Verificați contul direct de pe site-ul oficial al furnizorului",
+        "Raportați mesajul la canalul oficial de suport",
         "Marcați mesajul ca spam"
       ],
     },
@@ -501,10 +501,8 @@ export const translations = {
         "Grammatical and spelling errors"
       ],
       phishingRecommendations: [
-        "DO NOT access the link in the message",
-        "DO NOT enter personal data",
-        "Check your PayPal account directly on the official website",
-        "Report the message to phishing@paypal.com",
+        "Check your account directly on the official service website",
+        "Report the message to the official support channel",
         "Mark the message as spam"
       ],
     },
