@@ -13,6 +13,7 @@ import { ThreatAlert } from "./ThreatAlert";
 import { useLanguage } from "~/lib/LanguageContext";
 import * as tf from "@tensorflow/tfjs";
 import { scanContent } from "~/server/actions";
+import { extractTextFromImage } from "~/lib/ocr";
 
 // Configuration (Must match extension)
 const TEXT_MAX_LEN = 150;
@@ -23,11 +24,39 @@ const URL_OOV = "<OOV>";
 export function ManualAnalysis() {
   const { t, language } = useLanguage();
   const [analyzing, setAnalyzing] = useState(false);
+  const [processingImage, setProcessingImage] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("text");
   const [textContent, setTextContent] = useState("");
   const [urlContent, setUrlContent] = useState("");
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setProcessingImage(true);
+    setLoadError(null);
+    try {
+      const extractedText = await extractTextFromImage(file);
+
+      if (extractedText && extractedText.trim().length > 0) {
+        setTextContent(extractedText);
+        setActiveTab("text");
+        // Optional: Auto-analyze or just let them review
+      } else {
+        console.warn("OCR Result was empty");
+        setLoadError("OCR finished but no text was found within the image.");
+      }
+    } catch (err) {
+      console.error(err);
+      setLoadError("Failed to process image.");
+    } finally {
+      setProcessingImage(false);
+      // Reset input
+      e.target.value = '';
+    }
+  };
 
   // AI Models
   const [textModel, setTextModel] = useState<tf.LayersModel | null>(null);
@@ -197,8 +226,8 @@ export function ManualAnalysis() {
   };
 
   const sampleText = language === 'ro'
-    ? "Bună ziua,\n\nContul dumneavoastră PayPal a fost suspendat temporar din cauza activității suspecte. Pentru a-l reactiva, vă rugăm să vă conectați imediat la:\n\nhttps://secure-paypal-verify.xyz/login\n\nAveți la dispoziție 24 de ore pentru a evita închiderea permanentă a contului.\n\nEchipa PayPal"
-    : "Hello,\n\nYour PayPal account has been temporarily suspended due to suspicious activity. To reactivate it, please log in immediately at:\n\nhttps://secure-paypal-verify.xyz/login\n\nYou have 24 hours to avoid permanent account closure.\n\nPayPal Team";
+    ? "Exemplu: Bună ziua,\n\nContul dumneavoastră PayPal a fost suspendat temporar din cauza activității suspecte. Pentru a-l reactiva, vă rugăm să vă conectați imediat la:\n\nhttps://secure-paypal-verify.xyz/login\n\nAveți la dispoziție 24 de ore pentru a evita închiderea permanentă a contului.\n\nEchipa PayPal"
+    : "Example: Hello,\n\nYour PayPal account has been temporarily suspended due to suspicious activity. To reactivate it, please log in immediately at:\n\nhttps://secure-paypal-verify.xyz/login\n\nYou have 24 hours to avoid permanent account closure.\n\nPayPal Team";
 
   const isInputEmpty = activeTab === "text" ? !textContent.trim() : !urlContent.trim();
 
@@ -241,36 +270,46 @@ export function ManualAnalysis() {
               </TabsList>
 
               <TabsContent value="text" className="space-y-4">
-                <div className="relative">
-                  <p className="text-xs text-gray-400 mb-1 italic">
-                    {language === 'ro' ? "(Exemplu de text phishing mai jos - nu este analizat automat)" : "(Example phishing text below - not automatically analyzed)"}
-                  </p>
-                  <Textarea
-                    placeholder={sampleText}
-                    className="min-h-[200px] resize-none"
-                    onChange={(e) => setTextContent(e.target.value)}
-                  />
-                </div>
+                <Textarea
+                  placeholder={sampleText}
+                  className="min-h-[200px] resize-none"
+                  onChange={(e) => setTextContent(e.target.value)}
+                />
               </TabsContent>
 
               <TabsContent value="url" className="space-y-4">
-                <div className="relative">
-                  <p className="text-xs text-gray-400 mb-1 italic">
-                    {language === 'ro' ? "(Exemplu URL)" : "(Example URL)"}
-                  </p>
-                  <Textarea
-                    placeholder="https://example.com/login"
-                    className="min-h-[200px] resize-none font-mono"
-                    onChange={(e) => setUrlContent(e.target.value)}
-                  />
-                </div>
+                <Textarea
+                  placeholder="Example: https://example.com/login"
+                  className="min-h-[200px] resize-none font-mono"
+                  onChange={(e) => setUrlContent(e.target.value)}
+                />
               </TabsContent>
 
               <TabsContent value="image" className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer">
-                  <ImageIcon className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
-                  <p className="text-gray-600 dark:text-gray-400 mb-1">{t.manualAnalysis.uploadImage}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500">{t.manualAnalysis.dragDrop}</p>
+                <div
+                  className={`border-2 border-dashed ${processingImage ? "border-blue-400 bg-blue-50" : "border-gray-300 dark:border-gray-600"} rounded-lg p-12 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer relative`}
+                  onClick={() => document.getElementById('image-upload')?.click()}
+                >
+                  <input
+                    type="file"
+                    id="image-upload"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                  />
+
+                  {processingImage ? (
+                    <div className="flex flex-col items-center">
+                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                      <p className="text-blue-600 font-medium">Extracting Text (OCR)...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                      <p className="text-gray-600 dark:text-gray-400 mb-1">{t.manualAnalysis.uploadImage}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500">{t.manualAnalysis.dragDrop}</p>
+                    </>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
