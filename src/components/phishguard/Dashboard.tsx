@@ -23,7 +23,7 @@ export function Dashboard() {
   const [stats, setStats] = useState({
     totalScans: 0,
     threatsBlocked: 0,
-    detectionRate: "100",
+    detectionRate: "0",
     timeSaved: "0"
   });
   const [threats, setThreats] = useState<any[]>([]);
