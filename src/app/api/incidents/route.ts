@@ -34,7 +34,7 @@ export async function POST(req: Request) {
                 isPhishing: isPhishing,
                 confidence: confidence,
                 url: url,
-                // Map source if needed, or other fields
+                source: "extension"
             }
         });
 

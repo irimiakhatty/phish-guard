@@ -39,6 +39,7 @@ model Scan {
   subject         String?
   sender          String?
   url             String?
+  source          String?  // "extension", "manual_web", "email_monitor"
   
   // Analysis results
   riskLevel       String   // "safe", "low", "medium", "high", "critical"
